@@ -1,0 +1,31 @@
+Optimization Ideas
+------------------
+
+Time:
+- Overall
+	- Change ArrayLists to HashSets. Not really sure why I went with ArrayList over HashSet in the first place, I guess I wasn't
+	  thinking about it. Hopefully this makes a big difference. 
+- getAnnulus():
+	- Getting an annulus takes a really fucking long time. Since every time getAnnulus() is called, it is called multiple times from
+	  the same center with a growing radius, we can change the function to instead return a sequence of growing annuli from a point.
+	  That way we don't have to reiterate over the same range of points to get annuli with the same center
+- getNumProtrusions():
+	- Go find out why getting protrusions is taking so much longer for different images. It might have something to do with the
+	  thickness of the strands varying across different images, which would cause many more annuluses to be generated for every point.
+
+Accuracy:
+- getNumProtrusions():
+	- When the number of components of annulus intersect pixels is calculated, the result can be thrown off since the pixels
+	  only occur at discrete points, so sometimes what should be a single component is inconveniently split into multiple components.
+	  To fix this, we can possibly just combine components that are very close to each other
+	- There are several constants involved with calculating the number of protrusions:
+		- P_WINDOW
+		- INITIAL_RADIUS
+		- RADIUS_STEP1
+		- RADIUS_STEP2
+	  And there will also be another constant once the smoothing of close components mentioned earlier is implemented, to dicate
+	  the threshold for how close components must be to be merged. Maybe more will be added later after more optimization. We could
+	  possibly implement a machine learning component to optimize the values of these variables. Though that would require lots more 
+	  time to implement, as well as lots of training examples and stuff. Plus, if it were going for accuracy, then the radius step 
+	  values should probably just converge to 1. This leaves only 3 (maybe a couple more at most) variables, and at that point I'm 
+	  not really sure if it's worth it. Well see the final performance and then come back to this. 

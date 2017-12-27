@@ -1,0 +1,5 @@
+To do:
+
+- Comment, comment, comment
+- Fix preconditions (get rid of assert, throw errors instead?)
+- public vs private methods?
