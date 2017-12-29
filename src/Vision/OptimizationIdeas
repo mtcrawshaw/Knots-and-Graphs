@@ -3,22 +3,32 @@ Optimization Ideas
 
 Time:
 - Overall
-	- Change ArrayLists to HashSets. Not really sure why I went with ArrayList over HashSet in the first place, I guess I wasn't
+	DONE - Change ArrayLists to HashSets. Not really sure why I went with ArrayList over HashSet in the first place, I guess I wasn't
 	  thinking about it. Hopefully this makes a big difference. 
 - getAnnulus():
-	- Getting an annulus takes a really fucking long time. Since every time getAnnulus() is called, it is called multiple times from
+	UNNECESSARY - Getting an annulus takes a really fucking long time. Since every time getAnnulus() is called, it is called multiple times from
 	  the same center with a growing radius, we can change the function to instead return a sequence of growing annuli from a point.
-	  That way we don't have to reiterate over the same range of points to get annuli with the same center
+	  That way we don't have to reiterate over the same range of points to get annuli with the same center. 
 - getNumProtrusions():
 	- Go find out why getting protrusions is taking so much longer for different images. It might have something to do with the
 	  thickness of the strands varying across different images, which would cause many more annuluses to be generated for every point.
+	  Could also do with higher pixel density on different images, which could be accounting for by just throwing some pixels out, or
+	  averaging some and throwing the others out. 
+- getEndpoints():
+	- Do a random sampling of points when searching for the next endpoint, instead of searching through all possible endpoints.
+	- Find a different, faster way to cluster the possible endpoints. May not be as important, since finding endpoints doesn't seem to take too long. 
 
 Accuracy:
 - getNumProtrusions():
-	- When the number of components of annulus intersect pixels is calculated, the result can be thrown off since the pixels
+	UNNECESSARY - When the number of components of annulus intersect pixels is calculated, the result can be thrown off since the pixels
 	  only occur at discrete points, so sometimes what should be a single component is inconveniently split into multiple components.
-	  To fix this, we can possibly just combine components that are very close to each other
-	- There are several constants involved with calculating the number of protrusions:
+	  To fix this, we can possibly just combine components that are very close to each other. 
+	DONE - Instead of taking the intersection of annulus with pixels, then finding number of connected components (getting annulus and finding
+	  num connected components for every single point takes way too fucking long), do this: For a given point, let a radius grow from 1. For
+	  any given radius, travel along the circle centered at the point with that radius, and count the number of times the circle switches from
+	  inside pixels to outside pixels. Divide by 2, and that gives the same information as the number of connected components of an annulus of the
+	  same radius. Let the radius grow until less than some threshold value of the circle is outside pixels. 
+	UNNECESSARY - There are several constants involved with calculating the number of protrusions:
 		- P_WINDOW
 		- INITIAL_RADIUS
 		- RADIUS_STEP1
@@ -28,4 +38,5 @@ Accuracy:
 	  possibly implement a machine learning component to optimize the values of these variables. Though that would require lots more 
 	  time to implement, as well as lots of training examples and stuff. Plus, if it were going for accuracy, then the radius step 
 	  values should probably just converge to 1. This leaves only 3 (maybe a couple more at most) variables, and at that point I'm 
-	  not really sure if it's worth it. Well see the final performance and then come back to this. 
+	  not really sure if it's worth it. Well see the final performance and then come back to this. Although this would've been cool, 
+	  after making other improvements, I can see that there is no need for this. 

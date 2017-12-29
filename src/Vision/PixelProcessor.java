@@ -1,8 +1,13 @@
 package Vision;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+
+import javax.imageio.ImageIO;
 
 import javafx.util.Pair;
 
@@ -48,6 +53,68 @@ public class PixelProcessor {
 	}
 	
 	// Methods
+	public static BufferedImage testProtrusions(String path) {
+		BufferedImage testImage = null;
+		try {
+			testImage = ImageIO.read(new File("images/" + path));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		Recognizer rec = new Recognizer(testImage);
+		HashSet<Pair<Integer, Integer>> pixels = rec.getPixels();
+		int p = 0;
+		int n = pixels.size();
+		HashMap<Pair<Integer, Integer>, Integer> pixelsWithProtrusions = new HashMap<Pair<Integer, Integer>, Integer>();
+		
+		for (Pair<Integer, Integer> point : pixels) {
+			int numP = rec.getNumProtrusions(point);
+			System.out.println((double)p / (double)n);
+			p++;
+			pixelsWithProtrusions.put(point, numP);
+		}
+		
+		int height = testImage.getHeight();
+		int width = testImage.getWidth();
+		int numP = 0;
+		int[] blackArr = {0, 0, 0};
+		int[] redArr = {255, 0, 0};
+		int[] blueArr = {0, 0, 255};
+		int[] greenArr = {0, 255, 0};
+		int[] whiteArr = {255, 255, 255};
+		int black = PixelProcessor.RGBToInt(blackArr);
+		int red = PixelProcessor.RGBToInt(redArr);
+		int blue = PixelProcessor.RGBToInt(blueArr);
+		int green = PixelProcessor.RGBToInt(greenArr);
+		int white = PixelProcessor.RGBToInt(whiteArr);
+		BufferedImage outImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				if (pixelsWithProtrusions.containsKey(new Pair<Integer, Integer>(x, y))) {
+					numP = pixelsWithProtrusions.get(new Pair<Integer, Integer>(x, y));
+					
+					switch (numP) {
+					case 1:
+						outImage.setRGB(x, y, red);
+						break;
+					case 2:
+						outImage.setRGB(x, y, black);
+						break;
+					case 3:
+						outImage.setRGB(x, y, blue);
+						break;
+					default:
+						outImage.setRGB(x, y, green);
+					}
+				} else {
+					outImage.setRGB(x, y, white);
+				}
+			}
+		}
+		
+		return outImage;
+	}
 	public HashSet<Pair<Integer, Integer>> getAdjacentPixels(Pair<Integer, Integer> p) {
 		HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
 		int x = p.getKey();
@@ -131,6 +198,19 @@ public class PixelProcessor {
 	}
 	public static double calcDistance(Pair<Integer, Integer> p1, Pair<Integer, Integer> p2) {
 		return Math.sqrt(Math.pow(p1.getValue() - p2.getValue(), 2) + Math.pow(p1.getKey() - p2.getKey(), 2));
+	}
+	public static double getMinDistance(Pair<Integer, Integer> p, ArrayList<Pair<Integer, Integer>> listPoints) {
+		if (listPoints.size() == 0) return 0;
+		
+		double minDistance = calcDistance(p, listPoints.get(0));
+		double distance = 0;
+		
+		for (int i = 1; i < listPoints.size(); i++) {
+			distance = calcDistance(p, listPoints.get(i));
+			if (distance < minDistance) minDistance = distance;
+		}
+		
+		return minDistance;
 	}
 	public static int RGBToInt(int[] rgb) {
 		int n = rgb[0];

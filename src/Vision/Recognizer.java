@@ -1,8 +1,12 @@
 package Vision;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import javax.imageio.ImageIO;
 
 import javafx.util.Pair;
 
@@ -14,6 +18,16 @@ public class Recognizer {
 	// Constructors
 	public Recognizer(BufferedImage img) {
 		setImage(img);
+	}
+	public Recognizer(String path) {
+		BufferedImage testImage = null;
+		try {
+			testImage = ImageIO.read(new File("images/" + path));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		setImage(testImage);
 	}
 	public Recognizer() {
 		pixels = new HashSet<Pair<Integer, Integer>>();
@@ -44,12 +58,12 @@ public class Recognizer {
 	public VirtualKnot getKnot() {
 		return null;
 	}
-	
 	/*
 	 * Finds the connected components of the 2D pixel array using BFS, with diagonal pixels being considered adjacent.
 	 * Each component is recognized as an ArrayList of pairs of integers representing the coordinates of each point.
 	 * This function returns an ArrayList of such ArrayLists. 
 	 */
+	@SuppressWarnings("unused")
 	private HashSet<HashSet<Pair<Integer, Integer>>> getComponents(HashSet<Pair<Integer, Integer>> points) {
 		HashSet<Pair<Integer, Integer>> remainingPixels = points;
 		HashSet<HashSet<Pair<Integer, Integer>>> components = new HashSet<HashSet<Pair<Integer, Integer>>>();
@@ -87,8 +101,8 @@ public class Recognizer {
 	}
 	/*
 	 * Finds the number of "protrusions" of the knot at a given point. For example, if the point is an endpoint of a strand 
-	 * (like where a strand crosses under another strand), the number of protrusions is 1. If the point is the center of a virtual
-	 * crossing, the number of protrusions is 4. 
+	 * (like where a strand crosses under another strand), the number of protrusions is 1. If the point is in the middle of a strand,
+	 * the number of protrusions is 2. If the point is the center of a virtual crossing, the number of protrusions is 4. 
 	 */
 	public int getNumProtrusions(Pair<Integer, Integer> p) {
 		// This holds the range of radii for which the number of components of the annulus intersected with pixels is calculated
@@ -96,7 +110,7 @@ public class Recognizer {
 		final int RADIUS_STEP1 = 3;
 		final int RADIUS_STEP2 = 1;
 		final int INITIAL_RADIUS = 1;
-		final double CONTAINED_THRESHOLD = .3;
+		final double CONTAINED_THRESHOLD = .4;
 		
 		int radius = INITIAL_RADIUS;
 		int numSwitches = 0;
@@ -153,19 +167,43 @@ public class Recognizer {
 		return (int)Math.round(numProtrusions);
 	}
 	/*
-	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as an ArrayList of Pairs. The method
-	 * goes through a sampling of the points along the knot, calculates the number of protrusions for each point, then
-	 * collects all of the points with 1 protrusion and separates them into connected components, then smooths those
-	 * components based on a threshold ENDPOINT_THRESH. The function then returns those endpoints.
+	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as single point from the end of a strand. 
+	 * The method goes through a sampling of the points along the knot, calculates the number of protrusions for each point, 
+	 * then collects all of the points with 1 protrusion and chooses one point from each cluster, then returns those endpoints.
 	 */
-	public ArrayList<ArrayList<Pair<Integer, Integer>>> getEndpoints() {
+	public ArrayList<Pair<Integer, Integer>> getEndpoints(int numCrossings) {
 		final int PERCENT_SAMPLED = 80;
-		int step = (int) (pixels.size() * (double)PERCENT_SAMPLED / 100.0);
+		double proportionSampled = (double)PERCENT_SAMPLED / 100.0;
+		ArrayList<Pair<Integer, Integer>> pointsNearEnd = new ArrayList<Pair<Integer, Integer>>();
 		
-		for (int i = 0; i < pixels.size(); i += step) {
-			
+		for (Pair<Integer, Integer> point : pixels) {
+			if (Math.random() <= proportionSampled && getNumProtrusions(point) == 1) pointsNearEnd.add(point);
 		}
 		
-		return null;
+		ArrayList<Pair<Integer, Integer>> endPoints = new ArrayList<Pair<Integer, Integer>>();
+		
+		if (numCrossings <= 0 || pointsNearEnd.size() == 0) return null;
+		
+		double maxMinDistance = 0;
+		double minDistance = 0;
+		int maxMinIndex = 0;
+		endPoints.add(pointsNearEnd.remove(0));
+		
+		while (endPoints.size() < 2 * numCrossings && pointsNearEnd.size() > 0) {
+			maxMinIndex = 1;
+			maxMinDistance = PixelProcessor.getMinDistance(pointsNearEnd.get(0), endPoints);
+			
+			for (int i = 1; i < pointsNearEnd.size(); i++) {
+				minDistance = PixelProcessor.getMinDistance(pointsNearEnd.get(i), endPoints);
+				if (minDistance > maxMinDistance) {
+					maxMinDistance = minDistance;
+					maxMinIndex = i;
+				}
+			}
+			
+			endPoints.add(pointsNearEnd.remove(maxMinIndex));
+		}
+		
+		return endPoints;
 	}
 }
