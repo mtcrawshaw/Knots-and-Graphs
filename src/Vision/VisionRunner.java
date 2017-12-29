@@ -4,6 +4,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
 import javax.imageio.ImageIO;
 
@@ -11,7 +13,7 @@ import javafx.util.Pair;
 
 public class VisionRunner {
 	public static void main(String[] args) {
-		String path = "trefoil.svg";
+		String path = "newTrefoil2.png";
 		BufferedImage testImage = null;
 		try {
 			testImage = ImageIO.read(new File(path));
@@ -20,25 +22,30 @@ public class VisionRunner {
 		}
 		
 		Recognizer rec = new Recognizer(testImage);
-		ArrayList<Pair<Integer, Integer>> pixels = rec.getPixels();
-		Pair<Integer, Integer> point = new Pair<Integer, Integer>(0, 0);
-		int[] freq = new int[100];
-		int index = 0;
+		HashSet<Pair<Integer, Integer>> pixels = rec.getPixels();
+		int freq[] = new int[50];
 		
-		final int SAMPLE_SIZE = 500;
+		int p = 0;
+		int n = pixels.size();
+		HashMap<Pair<Integer, Integer>, Integer> ends = new HashMap<Pair<Integer, Integer>, Integer>();
 		
-		for (int i = 0; i < SAMPLE_SIZE; i++) {
-			index = (int)(i * pixels.size() / SAMPLE_SIZE);
-			freq[rec.getNumProtrusions(pixels.get(index))]++;
-			System.out.println((double)i / (double)SAMPLE_SIZE);
+		for (Pair<Integer, Integer> point : pixels) {
+			int numP = rec.getNumProtrusions(point);
+			freq[numP]++;
+			System.out.println((double)p / (double)n);
+			p++;
+			
+			if (numP != 2) {
+				ends.put(point, numP);
+			}
 		}
 		
-		for (int i = 0; i < 100; i++) {
+		for (int i = 0; i < freq.length; i++) {
 			System.out.println(i + ": " + freq[i]);
 		}
 		
-		//22, 263 had 3 (outside)
-		//321, 202 had 3 (middle)
-		
+		/*for (Pair<Integer, Integer> point : ends.keySet()) {
+			System.out.println(point + " " + ends.get(point));
+		}*/
 	}
 }

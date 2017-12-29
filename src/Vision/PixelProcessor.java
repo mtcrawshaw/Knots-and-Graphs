@@ -2,28 +2,35 @@ package Vision;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import javafx.util.Pair;
 
 public class PixelProcessor {
-	private ArrayList<Pair<Integer, Integer>> pixels;
+	private HashSet<Pair<Integer, Integer>> pixels;
 	
 	// Constructors
 	public PixelProcessor() {
-		pixels = new ArrayList<Pair<Integer, Integer>>();
+		pixels = new HashSet<Pair<Integer, Integer>>();
 	}
 	public PixelProcessor(BufferedImage img) {
 		setImage(img);
 	}
-	public PixelProcessor(ArrayList<Pair<Integer, Integer>> p) {
+	public PixelProcessor(HashSet<Pair<Integer, Integer>> p) {
 		pixels = p;
+	}
+	public PixelProcessor(ArrayList<Pair<Integer, Integer>> p) {
+		pixels = new HashSet<Pair<Integer, Integer>>();
+		for (Pair<Integer, Integer> point : p) {
+			pixels.add(point);
+		}
 	}
 	
 	// Mutators
 	public void setImage(BufferedImage img) {
 		int height = img.getHeight();
 		int width = img.getWidth();
-		pixels = new ArrayList<Pair<Integer, Integer>>();
+		pixels = new HashSet<Pair<Integer, Integer>>();
 		
 		for (int x = 0; x < width; x++) {
 			for (int y = 0; y < height; y++) {
@@ -31,18 +38,18 @@ public class PixelProcessor {
 			}
 		}
 	}
-	public void setPixels(ArrayList<Pair<Integer, Integer>> p) {
+	public void setPixels(HashSet<Pair<Integer, Integer>> p) {
 		pixels = p;
 	}
 	
 	// Accessors
-	public ArrayList<Pair<Integer, Integer>> getPixels() {
+	public HashSet<Pair<Integer, Integer>> getPixels() {
 		return pixels;
 	}
 	
 	// Methods
-	public ArrayList<Pair<Integer, Integer>> getAdjacentPixels(Pair<Integer, Integer> p) {
-		ArrayList<Pair<Integer, Integer>> adj = new ArrayList<Pair<Integer, Integer>>();
+	public HashSet<Pair<Integer, Integer>> getAdjacentPixels(Pair<Integer, Integer> p) {
+		HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
 		int x = p.getKey();
 		int y = p.getValue();
 		
@@ -57,8 +64,8 @@ public class PixelProcessor {
 		
 		return adj;
 	}
-	public static ArrayList<Pair<Integer, Integer>> getAnnulus(Pair<Integer, Integer> center, double innerRadius, double outerRadius) {
-		ArrayList<Pair<Integer, Integer>> annulus = new ArrayList<Pair<Integer, Integer>>();
+	public static HashSet<Pair<Integer, Integer>> getAnnulus(Pair<Integer, Integer> center, double innerRadius, double outerRadius) {
+		HashSet<Pair<Integer, Integer>> annulus = new HashSet<Pair<Integer, Integer>>();
 		
 		int centerX = center.getKey();
 		int centerY = center.getValue();
@@ -80,6 +87,47 @@ public class PixelProcessor {
 		}
 		
 		return annulus;
+	}
+	public static ArrayList<Pair<Integer, Integer>> getCircle(Pair<Integer, Integer> center, double radius) {
+		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair <Integer, Integer>>();
+		int x = center.getKey();
+		int y = center.getValue();
+		int newX = x;
+		int newY = y;
+		
+		int numPoints = (int)Math.round(8 * radius);
+		
+		for (int i = 0; i < numPoints; i++) {
+			newX = (int)Math.round(x + radius * Math.cos(2 * 3.1415926535 / numPoints * i));
+			newY = (int)Math.round(y - radius * Math.sin(2 * 3.1415926535 / numPoints * i)); // This is a minus here since the y-axis is flipped between cartesian coordinates and image coordinates
+			
+			if (circle.size() == 0 || newX != circle.get(circle.size() - 1).getKey() || newX != circle.get(circle.size() - 1).getValue())
+				circle.add(new Pair<Integer, Integer>(newX, newY));
+		}
+		
+		return circle;
+	}
+	public int getNumSwitches(ArrayList<Pair<Integer, Integer>> curve) {
+		int numSwitches = 0;
+		boolean insidePixels = pixels.contains(curve.get(0));
+		
+		for (int i = 1; i < curve.size(); i++) {
+			if (insidePixels ^ pixels.contains(curve.get(i))) {
+				insidePixels = !insidePixels;
+				numSwitches++;
+			}
+		}
+		
+		return numSwitches;
+	}
+	public int getNumPixelsContained(ArrayList<Pair<Integer, Integer>> curve) {
+		int numContained = 0;
+		
+		for (int i = 0; i < curve.size(); i++) {
+			if (pixels.contains(curve.get(i))) numContained++;
+		}
+		
+		return numContained;
 	}
 	public static double calcDistance(Pair<Integer, Integer> p1, Pair<Integer, Integer> p2) {
 		return Math.sqrt(Math.pow(p1.getValue() - p2.getValue(), 2) + Math.pow(p1.getKey() - p2.getKey(), 2));

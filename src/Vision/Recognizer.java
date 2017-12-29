@@ -57,7 +57,7 @@ public class Recognizer {
 		HashSet<Pair<Integer, Integer>> pixelsToExplore = new HashSet<Pair<Integer, Integer>>();
 		
 		PixelProcessor processor = new PixelProcessor(points);
-		ArrayList<Pair<Integer, Integer>> adj = new ArrayList<Pair<Integer, Integer>>();
+		HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
 		Pair<Integer, Integer> p = new Pair<Integer, Integer>(0, 0);
 		while (remainingPixels.size() > 0) {
 			pixelsToExplore.clear();
@@ -67,8 +67,8 @@ public class Recognizer {
 			currentComp = new HashSet<Pair<Integer, Integer>>();
 			
 			while (pixelsToExplore.size() > 0) {
-				p = remainingPixels.iterator().next();
-				remainingPixels.remove(p);
+				p = pixelsToExplore.iterator().next();
+				pixelsToExplore.remove(p);
 				currentComp.add(p);
 				
 				adj = processor.getAdjacentPixels(p);
@@ -93,13 +93,30 @@ public class Recognizer {
 	public int getNumProtrusions(Pair<Integer, Integer> p) {
 		// This holds the range of radii for which the number of components of the annulus intersected with pixels is calculated
 		final int P_WINDOW = 5;
-		final int RADIUS_STEP1 = 1;
+		final int RADIUS_STEP1 = 3;
 		final int RADIUS_STEP2 = 1;
 		final int INITIAL_RADIUS = 1;
+		final double CONTAINED_THRESHOLD = .3;
 		
-		HashSet<Pair<Integer, Integer>> annulus = new HashSet<Pair<Integer, Integer>>();
-		int numComponents = 0;
 		int radius = INITIAL_RADIUS;
+		int numSwitches = 0;
+		double amountContained = 1;
+		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair<Integer, Integer>>();
+		PixelProcessor processor = new PixelProcessor(pixels);
+		
+		while (amountContained > CONTAINED_THRESHOLD) {
+			circle = PixelProcessor.getCircle(p, radius);
+			numSwitches = processor.getNumSwitches(circle);
+			amountContained = (double)processor.getNumPixelsContained(circle) / (double)circle.size();
+			radius += RADIUS_STEP1;
+		}
+		
+		double numProtrusions = (double)numSwitches / (2.0 * (double)P_WINDOW);
+		for (int i = 1; i <= P_WINDOW - 1; i++) {
+			circle = PixelProcessor.getCircle(p, radius);
+			numProtrusions += (double)processor.getNumSwitches(circle) / (2.0 * (double)P_WINDOW);
+			radius += RADIUS_STEP2;
+		}
 		
 		/*
 		 * To calculate the number of protrusions from a point, an annulus is "grown" from that point until the number of 
@@ -107,16 +124,14 @@ public class Recognizer {
 		 * of the annulus intersected with the knot is then calculated for the next P_WINDOW integer values of the outer radius, 
 		 * and those values are averaged to produce the number of protrusions from that point.
 		 */
-		do {
+		/*do {
 			annulus = PixelProcessor.getAnnulus(p, Math.max(radius / 2, radius - 5), radius);
-			for (int i = 0; i < annulus.size(); i++) { 
-				if (!pixels.contains(annulus.get(i))) {
-					annulus.remove(i);
-					i--;
-				}
+			intersection = new HashSet<Pair<Integer, Integer>>();
+			for (Pair<Integer, Integer> a : annulus) {
+				if (pixels.contains(a)) intersection.add(a);
 			}
 			
-			numComponents = getComponents(annulus).size();
+			numComponents = getComponents(intersection).size();
 			radius += RADIUS_STEP1;
 		} while (numComponents == 1);
 		
@@ -125,15 +140,15 @@ public class Recognizer {
 		
 		for (int i = 1; i <= P_WINDOW - 1; i++) {
 			annulus = PixelProcessor.getAnnulus(p, Math.max(radius / 2, radius - 5), radius);
-			for (int j = 0; j < annulus.size(); j++) if (!pixels.contains(annulus.get(j))) {
-				annulus.remove(j);
-				j--;
+			intersection = new HashSet<Pair<Integer, Integer>>();
+			for (Pair<Integer, Integer> a : annulus) {
+				if (pixels.contains(a)) intersection.add(a);
 			}
 			
-			numComponents = getComponents(annulus).size();
+			numComponents = getComponents(intersection).size();
 			numProtrusions += (double)numComponents / (double)P_WINDOW;
 			radius += RADIUS_STEP2;
-		}
+		}*/
 		
 		return (int)Math.round(numProtrusions);
 	}
