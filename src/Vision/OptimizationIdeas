@@ -11,7 +11,7 @@ Time:
 	  That way we don't have to reiterate over the same range of points to get annuli with the same center. 
 - getNumProtrusions():
 	- Go find out why getting protrusions is taking so much longer for different images. It might have something to do with the
-	  thickness of the strands varying across different images, which would cause many more annuluses to be generated for every point.
+	  thickness of the strands varying across different images, which would cause many more circles to be generated for every point.
 	  Could also do with higher pixel density on different images, which could be accounting for by just throwing some pixels out, or
 	  averaging some and throwing the others out. 
 - getEndpoints():
@@ -40,3 +40,13 @@ Accuracy:
 	  values should probably just converge to 1. This leaves only 3 (maybe a couple more at most) variables, and at that point I'm 
 	  not really sure if it's worth it. Well see the final performance and then come back to this. Although this would've been cool, 
 	  after making other improvements, I can see that there is no need for this. 
+- getEndpoints():
+	- The current method for finding endpoints from the set of points with 1 protrusion is questionable. It works when getProtrusions works without
+	  hiccups, but if there are too many points (or maybe even any points) that return 1 protrusion but aren't near an endpoint, the current method 
+	  for finding endpoints will be completely fucked. One solution is to use the current method to find a set of points which can then be used as 
+	  the initial centroids in a k-means clustering, though I'm not sold that this won't also be fucked. Another possible solution is to verify each
+	  choice of endpoint by pairing the endpoints by distance when throughout the process of choosing endpoints. Another possible solution which would
+	  be easy to implement would be to "smooth out" the 1-protrusion points, then keep the current method. Since we just want to eliminate those points
+	  that are identified with 1 protrusion but are isolated, we can just change the number of protrusions of a point to be the average of the 3x3 square
+	  encompassing that point, then round. This may eliminate isolated points. Even if we don't keep the current method, I think this smoothing might
+	  help in general. 

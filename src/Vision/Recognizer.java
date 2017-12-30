@@ -110,7 +110,7 @@ public class Recognizer {
 		final int RADIUS_STEP1 = 3;
 		final int RADIUS_STEP2 = 1;
 		final int INITIAL_RADIUS = 1;
-		final double CONTAINED_THRESHOLD = .4;
+		final double CONTAINED_THRESHOLD = .3;
 		
 		int radius = INITIAL_RADIUS;
 		int numSwitches = 0;
@@ -176,8 +176,13 @@ public class Recognizer {
 		double proportionSampled = (double)PERCENT_SAMPLED / 100.0;
 		ArrayList<Pair<Integer, Integer>> pointsNearEnd = new ArrayList<Pair<Integer, Integer>>();
 		
+		int n = pixels.size(); // Remove this after testing
+		int count = 0; // Remove this after testing
+		
 		for (Pair<Integer, Integer> point : pixels) {
 			if (Math.random() <= proportionSampled && getNumProtrusions(point) == 1) pointsNearEnd.add(point);
+			System.out.println("Finding endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
+			count++; //Remove this after testing
 		}
 		
 		ArrayList<Pair<Integer, Integer>> endPoints = new ArrayList<Pair<Integer, Integer>>();
@@ -191,10 +196,10 @@ public class Recognizer {
 		
 		while (endPoints.size() < 2 * numCrossings && pointsNearEnd.size() > 0) {
 			maxMinIndex = 1;
-			maxMinDistance = PixelProcessor.getMinDistance(pointsNearEnd.get(0), endPoints);
+			maxMinDistance = PixelProcessor.calcDistance(pointsNearEnd.get(0), PixelProcessor.getClosestPoint(pointsNearEnd.get(0), endPoints));
 			
 			for (int i = 1; i < pointsNearEnd.size(); i++) {
-				minDistance = PixelProcessor.getMinDistance(pointsNearEnd.get(i), endPoints);
+				minDistance = PixelProcessor.calcDistance(pointsNearEnd.get(i), PixelProcessor.getClosestPoint(pointsNearEnd.get(i), endPoints));
 				if (minDistance > maxMinDistance) {
 					maxMinDistance = minDistance;
 					maxMinIndex = i;
@@ -205,5 +210,36 @@ public class Recognizer {
 		}
 		
 		return endPoints;
+	}
+	/*
+	 * Given an ArrayList of endpoints, this method returns an ArrayList of pairs of endpoints, where the endpoints are paired by distance, so that
+	 * an endpoint is paired with the endpoint corresponding to the other under-strand in the same crossing. 
+	 */
+	public ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairEndpoints(ArrayList<Pair<Integer, Integer>> endpoints) {
+		ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpointPairs = new ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>>();
+		Pair<Integer, Integer> currentEndpoint = new Pair<Integer, Integer>(0, 0);
+		Pair<Integer, Integer> currentPartner = new Pair<Integer, Integer>(0, 0);
+		
+		int n = endpoints.size(); // Remove this after testing
+		int count = 0;	// Remove this after testing
+		
+		while (endpoints.size() > 0) {
+			System.out.println("Pairing endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
+			count++; // Remove this after testing
+			currentEndpoint = endpoints.remove(0);
+			currentPartner = PixelProcessor.getClosestPoint(currentEndpoint, endpoints);
+			endpoints.remove(currentPartner);
+			endpointPairs.add(new Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>(currentEndpoint, currentPartner));
+		}
+		
+		return endpointPairs;
+	}
+	/*
+	 * START HERE TOMORROW. Just start with pixels, then remove rectangles between paired endpoints. Easy peazy
+	 */
+	public HashSet<Pair<Integer, Integer>> getArcPixels(ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints) {
+		HashSet<Pair<Integer, Integer>> arcPixels = pixels;
+		
+		return arcPixels;
 	}
 }

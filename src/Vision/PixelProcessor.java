@@ -1,13 +1,8 @@
 package Vision;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-
-import javax.imageio.ImageIO;
 
 import javafx.util.Pair;
 
@@ -53,68 +48,6 @@ public class PixelProcessor {
 	}
 	
 	// Methods
-	public static BufferedImage testProtrusions(String path) {
-		BufferedImage testImage = null;
-		try {
-			testImage = ImageIO.read(new File("images/" + path));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		Recognizer rec = new Recognizer(testImage);
-		HashSet<Pair<Integer, Integer>> pixels = rec.getPixels();
-		int p = 0;
-		int n = pixels.size();
-		HashMap<Pair<Integer, Integer>, Integer> pixelsWithProtrusions = new HashMap<Pair<Integer, Integer>, Integer>();
-		
-		for (Pair<Integer, Integer> point : pixels) {
-			int numP = rec.getNumProtrusions(point);
-			System.out.println((double)p / (double)n);
-			p++;
-			pixelsWithProtrusions.put(point, numP);
-		}
-		
-		int height = testImage.getHeight();
-		int width = testImage.getWidth();
-		int numP = 0;
-		int[] blackArr = {0, 0, 0};
-		int[] redArr = {255, 0, 0};
-		int[] blueArr = {0, 0, 255};
-		int[] greenArr = {0, 255, 0};
-		int[] whiteArr = {255, 255, 255};
-		int black = PixelProcessor.RGBToInt(blackArr);
-		int red = PixelProcessor.RGBToInt(redArr);
-		int blue = PixelProcessor.RGBToInt(blueArr);
-		int green = PixelProcessor.RGBToInt(greenArr);
-		int white = PixelProcessor.RGBToInt(whiteArr);
-		BufferedImage outImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-		
-		for (int x = 0; x < width; x++) {
-			for (int y = 0; y < height; y++) {
-				if (pixelsWithProtrusions.containsKey(new Pair<Integer, Integer>(x, y))) {
-					numP = pixelsWithProtrusions.get(new Pair<Integer, Integer>(x, y));
-					
-					switch (numP) {
-					case 1:
-						outImage.setRGB(x, y, red);
-						break;
-					case 2:
-						outImage.setRGB(x, y, black);
-						break;
-					case 3:
-						outImage.setRGB(x, y, blue);
-						break;
-					default:
-						outImage.setRGB(x, y, green);
-					}
-				} else {
-					outImage.setRGB(x, y, white);
-				}
-			}
-		}
-		
-		return outImage;
-	}
 	public HashSet<Pair<Integer, Integer>> getAdjacentPixels(Pair<Integer, Integer> p) {
 		HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
 		int x = p.getKey();
@@ -128,6 +61,22 @@ public class PixelProcessor {
 		if (pixels.contains(new Pair<Integer, Integer>(x + 1, y - 1))) adj.add(new Pair<Integer, Integer>(x + 1, y - 1));
 		if (pixels.contains(new Pair<Integer, Integer>(x + 1, y))) adj.add(new Pair<Integer, Integer>(x + 1, y));
 		if (pixels.contains(new Pair<Integer, Integer>(x + 1, y + 1))) adj.add(new Pair<Integer, Integer>(x + 1, y + 1));
+		
+		return adj;
+	}
+	public static HashSet<Pair<Integer, Integer>> getAdjacentPoints(Pair<Integer, Integer> p) {
+		HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
+		int x = p.getKey();
+		int y = p.getValue();
+		
+		adj.add(new Pair<Integer, Integer>(x - 1, y - 1));
+		adj.add(new Pair<Integer, Integer>(x - 1, y));
+		adj.add(new Pair<Integer, Integer>(x - 1, y + 1));
+		adj.add(new Pair<Integer, Integer>(x, y - 1));
+		adj.add(new Pair<Integer, Integer>(x, y + 1));
+		adj.add(new Pair<Integer, Integer>(x + 1, y - 1));
+		adj.add(new Pair<Integer, Integer>(x + 1, y));
+		adj.add(new Pair<Integer, Integer>(x + 1, y + 1));
 		
 		return adj;
 	}
@@ -196,21 +145,50 @@ public class PixelProcessor {
 		
 		return numContained;
 	}
+	public static ArrayList<Pair<Integer, Integer>> getRectangleBetween(Pair<Integer, Integer> p1, Pair<Integer, Integer> p2) {
+		ArrayList<Pair<Integer, Integer>> rectangle = new ArrayList<Pair<Integer, Integer>>();
+		
+		int x1, y1, x2, y2;
+		int x, y;
+		Pair<Integer, Integer> currentPoint = new Pair<Integer, Integer>(0, 0);
+		double t;
+		
+		x1 = p1.getKey();
+		y1 = p1.getValue();
+		x2 = p2.getKey();
+		y2 = p2.getValue();
+		int numTraversalPoints = Math.abs(y2 - y1) + Math.abs(x2 - x1);
+			
+		for (int n = 0; n <= numTraversalPoints; n++) {
+			t = (double)n / (double)numTraversalPoints;
+			x = (int)Math.round((1 - t) * x1 + t * x2);
+			y = (int)Math.round((1 - t) * y1 + t * y2);
+			currentPoint = new Pair<Integer, Integer>(x, y);
+			rectangle.add(currentPoint);
+			rectangle.addAll(getAdjacentPoints(currentPoint));
+		}
+				
+		return rectangle;
+	}
 	public static double calcDistance(Pair<Integer, Integer> p1, Pair<Integer, Integer> p2) {
 		return Math.sqrt(Math.pow(p1.getValue() - p2.getValue(), 2) + Math.pow(p1.getKey() - p2.getKey(), 2));
 	}
-	public static double getMinDistance(Pair<Integer, Integer> p, ArrayList<Pair<Integer, Integer>> listPoints) {
-		if (listPoints.size() == 0) return 0;
+	public static Pair<Integer, Integer> getClosestPoint(Pair<Integer, Integer> p, ArrayList<Pair<Integer, Integer>> listPoints) {
+		if (listPoints.size() == 0) return null;
 		
 		double minDistance = calcDistance(p, listPoints.get(0));
+		int minIndex = 0;
 		double distance = 0;
 		
 		for (int i = 1; i < listPoints.size(); i++) {
 			distance = calcDistance(p, listPoints.get(i));
-			if (distance < minDistance) minDistance = distance;
+			if (distance < minDistance) {
+				minDistance = distance;
+				minIndex = i;
+			}
 		}
 		
-		return minDistance;
+		return listPoints.get(minIndex);
 	}
 	public static int RGBToInt(int[] rgb) {
 		int n = rgb[0];
@@ -229,6 +207,6 @@ public class PixelProcessor {
 		return isBlack(intToRGB(n));
 	}
 	public static boolean isBlack(int[] rgb) {
-		return rgb[0] + rgb[1] + rgb[2] <= 382;
+		return rgb[0] + rgb[1] + rgb[2] <= 381;
 	}
 }
