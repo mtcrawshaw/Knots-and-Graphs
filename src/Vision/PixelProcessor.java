@@ -80,26 +80,11 @@ public class PixelProcessor {
 		
 		return adj;
 	}
-	public static HashSet<Pair<Integer, Integer>> getAnnulus(Pair<Integer, Integer> center, double innerRadius, double outerRadius) {
-		HashSet<Pair<Integer, Integer>> annulus = new HashSet<Pair<Integer, Integer>>();
+	public static ArrayList<Pair<Integer, Integer>> getAnnulus(Pair<Integer, Integer> center, double innerRadius, double outerRadius) {
+		ArrayList<Pair<Integer, Integer>> annulus = new ArrayList<Pair<Integer, Integer>>();
 		
-		int centerX = center.getKey();
-		int centerY = center.getValue();
-		int startX = (int) (centerX - outerRadius - 1);
-		int endX = (int) (centerX + outerRadius + 1);
-		int startY = (int) (centerY - outerRadius - 1);
-		int endY = (int) (centerY + outerRadius + 1);
-		double distance = 0;
-		Pair<Integer, Integer> temp = new Pair<Integer, Integer>(0, 0);
-		
-		for (int x = startX; x <= endX; x++) {
-			for (int y = startY; y <= endY; y++) {
-				temp = new Pair<Integer, Integer>(x, y);
-				distance = calcDistance(center, temp);
-				if (distance >= innerRadius && distance <= outerRadius) {
-					annulus.add(temp);
-				}
-			}
+		for (int i = (int)Math.round(innerRadius); i <= Math.round(outerRadius); i++) {
+			annulus.addAll(getCircle(center, i));
 		}
 		
 		return annulus;

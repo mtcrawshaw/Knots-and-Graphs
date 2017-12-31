@@ -64,7 +64,7 @@ public class Recognizer {
 	 * Each component is recognized as an ArrayList of pairs of integers representing the coordinates of each point.
 	 * This function returns an ArrayList of such ArrayLists. 
 	 */
-	private HashSet<HashSet<Pair<Integer, Integer>>> getComponents(HashSet<Pair<Integer, Integer>> points) {
+	public HashSet<HashSet<Pair<Integer, Integer>>> getComponents(HashSet<Pair<Integer, Integer>> points) {
 		HashSet<Pair<Integer, Integer>> remainingPixels = points;
 		HashSet<HashSet<Pair<Integer, Integer>>> components = new HashSet<HashSet<Pair<Integer, Integer>>>();
 		HashSet<Pair<Integer, Integer>> currentComp = new HashSet<Pair<Integer, Integer>>();
@@ -132,38 +132,6 @@ public class Recognizer {
 			radius += RADIUS_STEP2;
 		}
 		
-		/*
-		 * To calculate the number of protrusions from a point, an annulus is "grown" from that point until the number of 
-		 * connected components of the annulus intersected with the knot becomes larger than 1. The number of connected components
-		 * of the annulus intersected with the knot is then calculated for the next P_WINDOW integer values of the outer radius, 
-		 * and those values are averaged to produce the number of protrusions from that point.
-		 */
-		/*do {
-			annulus = PixelProcessor.getAnnulus(p, Math.max(radius / 2, radius - 5), radius);
-			intersection = new HashSet<Pair<Integer, Integer>>();
-			for (Pair<Integer, Integer> a : annulus) {
-				if (pixels.contains(a)) intersection.add(a);
-			}
-			
-			numComponents = getComponents(intersection).size();
-			radius += RADIUS_STEP1;
-		} while (numComponents == 1);
-		
-		radius -= RADIUS_STEP1;
-		double numProtrusions = (double)numComponents / (double)P_WINDOW;
-		
-		for (int i = 1; i <= P_WINDOW - 1; i++) {
-			annulus = PixelProcessor.getAnnulus(p, Math.max(radius / 2, radius - 5), radius);
-			intersection = new HashSet<Pair<Integer, Integer>>();
-			for (Pair<Integer, Integer> a : annulus) {
-				if (pixels.contains(a)) intersection.add(a);
-			}
-			
-			numComponents = getComponents(intersection).size();
-			numProtrusions += (double)numComponents / (double)P_WINDOW;
-			radius += RADIUS_STEP2;
-		}*/
-		
 		return (int)Math.round(numProtrusions);
 	}
 	/*
@@ -190,8 +158,33 @@ public class Recognizer {
 	/*
 	 * START HERE TOMORROW
 	 */
-	public HashMap<Pair<Integer, Integer>, Integer> smoothProtrusionMap(HashMap<Pair<Integer, Integer>, Integer> protrusions) {
-		return protrusions;
+	public HashMap<Pair<Integer, Integer>, Integer> smootheProtrusionMap(HashMap<Pair<Integer, Integer>, Integer> protrusions, double radius) {
+		HashMap<Pair<Integer, Integer>, Integer> smoothedProtrusions = new HashMap<Pair<Integer, Integer>, Integer>();
+		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair<Integer, Integer>>();
+		int sumProtrusions = 0, numNearPoints = 0;
+		double avgProtrusions = 0;
+		int p = 0, n = pixels.size();
+		
+		for (Pair<Integer, Integer> point : pixels) {
+			circle = PixelProcessor.getAnnulus(point, 0, radius);
+			sumProtrusions = 0;
+			numNearPoints = 0;
+			
+			for (Pair<Integer, Integer> nearPoint : circle) {
+				if (protrusions.containsKey(nearPoint)) {
+					numNearPoints++;
+					sumProtrusions += protrusions.get(nearPoint);
+				}
+			}
+			
+			avgProtrusions = (double)sumProtrusions / (double)numNearPoints;
+			smoothedProtrusions.put(point, (int)Math.round(avgProtrusions));
+			
+			System.out.println("Smoothing endpoints " + 100.0 * (double)p / (double)n);
+			p++;
+		}
+		
+		return smoothedProtrusions;
 	}
 	/*
 	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as single point from the end of a strand. 

@@ -13,46 +13,40 @@ import javafx.util.Pair;
 
 public class VisionRunner {
 	public static void main(String[] args) {
-		String path = "trefoil.svg";
+		String path = "perkoPair.gif";
 		Recognizer rec = new Recognizer(path);
 		
-		BufferedImage testImage = null;
+		final int SMOOTHING_RADIUS = 3;
+		final int NUM_SMOOTHINGS = 3;
+		ArrayList<Integer> numComp = new ArrayList<Integer>();
+		
+		HashMap<Pair<Integer, Integer>, Integer> protrusions = rec.getProtrusionMap();
+		HashSet<Pair<Integer, Integer>> possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
+		for (Pair<Integer, Integer> point : protrusions.keySet()) {
+			if (protrusions.get(point) == 1) possibleEndpoints.add(point);
+		}
+		numComp.add(rec.getComponents(possibleEndpoints).size());
+		
+		for (int i = 0; i < NUM_SMOOTHINGS; i++) {
+			protrusions = rec.smootheProtrusionMap(protrusions, SMOOTHING_RADIUS);
+			possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
+			for (Pair<Integer, Integer> point : protrusions.keySet()) {
+				if (protrusions.get(point) == 1) possibleEndpoints.add(point);
+			}
+			numComp.add(rec.getComponents(possibleEndpoints).size());
+		}
+		
+		System.out.println(numComp);
+		
+		/*BufferedImage testImage = null;
 		try {
 			testImage = ImageIO.read(new File("images/" + path));
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
-		
-		//testImage = testProtrusions(rec, testImage);
-		
-		ArrayList<Pair<Integer, Integer>> endpoints = rec.getEndpoints(3);
-		testImage = testEndpoints(endpoints, testImage);
-		
-		ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints = rec.pairEndpoints(endpoints); 
-		testImage = testPairingEndpoints(pairedEndpoints, testImage);
-		
-		System.out.println(rec.getArcs(pairedEndpoints).size());
-		
-		File outputfile = new File("images/test_" + path);
-        try {
-            ImageIO.write(testImage, "png", outputfile);
-        } catch (IOException e1) {
-        	System.err.println("Couldn't print file");
-        }
-	}
-	
-	public static BufferedImage testProtrusions(Recognizer rec, BufferedImage testImage) {
-		HashSet<Pair<Integer, Integer>> pixels = rec.getPixels();
-		int p = 0;
-		int n = pixels.size();
-		HashMap<Pair<Integer, Integer>, Integer> pixelsWithProtrusions = new HashMap<Pair<Integer, Integer>, Integer>();
-		
-		for (Pair<Integer, Integer> point : pixels) {
-			int numP = rec.getNumProtrusions(point);
-			System.out.println("Searching for endpoints " + 100.0 * (double)p / (double)n);
-			p++;
-			pixelsWithProtrusions.put(point, numP);
-		}
+		}HashMap<Pair<Integer, Integer>, Integer> protrusions = rec.getProtrusionMap();
+		protrusions = rec.smootheProtrusionMap(protrusions, 5);
+		protrusions = rec.smootheProtrusionMap(protrusions, 5);
+		protrusions = rec.smootheProtrusionMap(protrusions, 5);
 		
 		int height = testImage.getHeight();
 		int width = testImage.getWidth();
@@ -70,8 +64,8 @@ public class VisionRunner {
 		
 		for (int x = 0; x < width; x++) {
 			for (int y = 0; y < height; y++) {
-				if (pixelsWithProtrusions.containsKey(new Pair<Integer, Integer>(x, y))) {
-					numP = pixelsWithProtrusions.get(new Pair<Integer, Integer>(x, y));
+				if (protrusions.containsKey(new Pair<Integer, Integer>(x, y))) {
+					numP = protrusions.get(new Pair<Integer, Integer>(x, y));
 					
 					switch (numP) {
 					case 1:
@@ -92,18 +86,15 @@ public class VisionRunner {
 			}
 		}
 		
-		return testImage;
+		File outputfile = new File("images/test_" + path);
+		System.out.println(path.substring(path.length() - 3));
+        try {
+            ImageIO.write(testImage, path.substring(path.length() - 3), outputfile);
+        } catch (IOException e1) {
+        	System.err.println("Couldn't print file");
+        }*/
 	}
-	public static BufferedImage testEndpoints(ArrayList<Pair<Integer, Integer>> endpoints, BufferedImage testImage) {
-		int[] colorArr = {0, 0, 0};
-		int color = PixelProcessor.RGBToInt(colorArr);
-		
-		for (Pair<Integer, Integer> p : endpoints) {
-			testImage.setRGB(p.getKey(), p.getValue(), color);
-		}
-		
-		return testImage;
-	}
+	
 	public static BufferedImage testPairingEndpoints(ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints, BufferedImage testImage) {
 		ArrayList<Pair<Integer, Integer>> rect = new ArrayList<Pair<Integer, Integer>>();
 		
