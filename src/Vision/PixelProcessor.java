@@ -2,6 +2,7 @@ package Vision;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 
 import javafx.util.Pair;
@@ -48,6 +49,40 @@ public class PixelProcessor {
 	}
 	
 	// Methods
+	public HashSet<HashSet<Pair<Integer, Integer>>> getComponents() {
+		HashSet<Pair<Integer, Integer>> remainingPixels = pixels;
+		HashSet<HashSet<Pair<Integer, Integer>>> components = new HashSet<HashSet<Pair<Integer, Integer>>>();
+		HashSet<Pair<Integer, Integer>> currentComp = new HashSet<Pair<Integer, Integer>>();
+		HashSet<Pair<Integer, Integer>> pixelsToExplore = new HashSet<Pair<Integer, Integer>>();
+		
+		HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
+		Pair<Integer, Integer> p = new Pair<Integer, Integer>(0, 0);
+		while (remainingPixels.size() > 0) {
+			pixelsToExplore.clear();
+			p = remainingPixels.iterator().next();
+			remainingPixels.remove(p);
+			pixelsToExplore.add(p);
+			currentComp = new HashSet<Pair<Integer, Integer>>();
+			
+			while (pixelsToExplore.size() > 0) {
+				p = pixelsToExplore.iterator().next();
+				pixelsToExplore.remove(p);
+				currentComp.add(p);
+				
+				adj = getAdjacentPixels(p);
+				for (Pair<Integer, Integer> a : adj) {
+					if (remainingPixels.contains(a) && !pixelsToExplore.contains(a)) { 
+						remainingPixels.remove(a);
+						pixelsToExplore.add(a);
+					}
+				}
+			}
+			
+			components.add(currentComp);
+		}
+		
+		return components;
+	}
 	public HashSet<Pair<Integer, Integer>> getAdjacentPixels(Pair<Integer, Integer> p) {
 		HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
 		int x = p.getKey();
@@ -158,22 +193,22 @@ public class PixelProcessor {
 	public static double calcDistance(Pair<Integer, Integer> p1, Pair<Integer, Integer> p2) {
 		return Math.sqrt(Math.pow(p1.getValue() - p2.getValue(), 2) + Math.pow(p1.getKey() - p2.getKey(), 2));
 	}
-	public static Pair<Integer, Integer> getClosestPoint(Pair<Integer, Integer> p, ArrayList<Pair<Integer, Integer>> listPoints) {
+	public static Pair<Integer, Integer> getClosestPoint(Pair<Integer, Integer> p, Collection<Pair<Integer, Integer>> listPoints) {
 		if (listPoints.size() == 0) return null;
 		
-		double minDistance = calcDistance(p, listPoints.get(0));
-		int minIndex = 0;
+		double minDistance = Integer.MAX_VALUE;
+		Pair<Integer, Integer> closestPoint = new Pair<Integer, Integer>(0, 0);
 		double distance = 0;
 		
-		for (int i = 1; i < listPoints.size(); i++) {
-			distance = calcDistance(p, listPoints.get(i));
+		for (Pair<Integer, Integer> listP : listPoints) {
+			distance = calcDistance(p, listP);
 			if (distance < minDistance) {
 				minDistance = distance;
-				minIndex = i;
+				closestPoint = listP;
 			}
 		}
 		
-		return listPoints.get(minIndex);
+		return closestPoint;
 	}
 	public static int RGBToInt(int[] rgb) {
 		int n = rgb[0];

@@ -1,5 +1,12 @@
-Optimization Ideas
-------------------
+Optimization Ideas and To Do List
+---------------------------------
+
+TO DO:
+- In cases where order doesn't matter, change ArrayLists to HashSets. Originally kept some ArrayLists because performance wasn't always important, 
+  but now there are a bunch of compatibility issues between methods that use ArrayLists and methods that use HashSets.
+- Generalize methods with Collection if possible
+- Start linking together the pieces of the puzzle in the getKnot() method instead of doing a bunch of ad hoc shit in the main of the runner.
+- Clean up and comment.
 
 Time:
 - Overall
@@ -51,7 +58,7 @@ Accuracy:
 	  - Use the current method to find a set of points which can then be used as the initial centroids in a k-means clustering, though I'm not sold that
 	    this won't also be fucked. 
 	  - Verify each choice of endpoint by pairing the endpoints by distance throughout the process of choosing endpoints. 
-	  - Smooth out  the 1-protrusion points, then keep the current method. Since we just want to eliminate those points that are identified with 1 
+	  - Smooth out the 1-protrusion points, then keep the current method. Since we just want to eliminate those points that are identified with 1 
 	    protrusion but are isolated, we can just change the number of protrusions of a point to be the average of the 3x3 square encompassing that point, 
 	    then round. This may eliminate isolated points. Even if we don't keep the current method, I think this smoothing might help in general. 
 	  - Run k-means multiple times with different centroids, somehow "average" results.

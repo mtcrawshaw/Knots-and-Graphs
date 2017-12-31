@@ -13,30 +13,33 @@ import javafx.util.Pair;
 
 public class VisionRunner {
 	public static void main(String[] args) {
-		String path = "perkoPair.gif";
+		String path = "6_3.png";
 		Recognizer rec = new Recognizer(path);
+		final int NUM_CROSSINGS = 6;
 		
 		final int SMOOTHING_RADIUS = 3;
-		final int NUM_SMOOTHINGS = 3;
-		ArrayList<Integer> numComp = new ArrayList<Integer>();
+		ArrayList<Integer> numCompSeq = new ArrayList<Integer>();
+		PixelProcessor proc = new PixelProcessor();
 		
 		HashMap<Pair<Integer, Integer>, Integer> protrusions = rec.getProtrusionMap();
 		HashSet<Pair<Integer, Integer>> possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
 		for (Pair<Integer, Integer> point : protrusions.keySet()) {
 			if (protrusions.get(point) == 1) possibleEndpoints.add(point);
 		}
-		numComp.add(rec.getComponents(possibleEndpoints).size());
+		proc.setPixels(possibleEndpoints);
+		numCompSeq.add(proc.getComponents().size());
 		
-		for (int i = 0; i < NUM_SMOOTHINGS; i++) {
+		while (numCompSeq.get(numCompSeq.size() - 1) > NUM_CROSSINGS * 2) {
 			protrusions = rec.smootheProtrusionMap(protrusions, SMOOTHING_RADIUS);
 			possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
 			for (Pair<Integer, Integer> point : protrusions.keySet()) {
 				if (protrusions.get(point) == 1) possibleEndpoints.add(point);
 			}
-			numComp.add(rec.getComponents(possibleEndpoints).size());
+			proc.setPixels(possibleEndpoints);
+			numCompSeq.add(proc.getComponents().size());
 		}
 		
-		System.out.println(numComp);
+		System.out.println(numCompSeq);
 		
 		/*BufferedImage testImage = null;
 		try {
@@ -86,7 +89,7 @@ public class VisionRunner {
 			}
 		}
 		
-		File outputfile = new File("images/test_" + path);
+		File outputfile = new File("images/test/test_" + path);
 		System.out.println(path.substring(path.length() - 3));
         try {
             ImageIO.write(testImage, path.substring(path.length() - 3), outputfile);
