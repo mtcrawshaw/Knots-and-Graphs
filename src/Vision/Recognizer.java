@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 import javax.imageio.ImageIO;
@@ -63,7 +64,6 @@ public class Recognizer {
 	 * Each component is recognized as an ArrayList of pairs of integers representing the coordinates of each point.
 	 * This function returns an ArrayList of such ArrayLists. 
 	 */
-	@SuppressWarnings("unused")
 	private HashSet<HashSet<Pair<Integer, Integer>>> getComponents(HashSet<Pair<Integer, Integer>> points) {
 		HashSet<Pair<Integer, Integer>> remainingPixels = points;
 		HashSet<HashSet<Pair<Integer, Integer>>> components = new HashSet<HashSet<Pair<Integer, Integer>>>();
@@ -167,22 +167,43 @@ public class Recognizer {
 		return (int)Math.round(numProtrusions);
 	}
 	/*
-	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as single point from the end of a strand. 
-	 * The method goes through a sampling of the points along the knot, calculates the number of protrusions for each point, 
-	 * then collects all of the points with 1 protrusion and chooses one point from each cluster, then returns those endpoints.
+	 * Chooses a random sampling of the pixels (samples PERCENT_SAMPLED percent of all pixels in the knot), then calculates
+	 * the number of protrusion for each point, then returns a map of the pair (point, numProtrusions(point)).
 	 */
-	public ArrayList<Pair<Integer, Integer>> getEndpoints(int numCrossings) {
+	public HashMap<Pair<Integer, Integer>, Integer> getProtrusionMap() {
+		HashMap<Pair<Integer, Integer>, Integer> protrusions = new HashMap<Pair<Integer, Integer>, Integer>();
+		
 		final int PERCENT_SAMPLED = 80;
 		double proportionSampled = (double)PERCENT_SAMPLED / 100.0;
-		ArrayList<Pair<Integer, Integer>> pointsNearEnd = new ArrayList<Pair<Integer, Integer>>();
 		
 		int n = pixels.size(); // Remove this after testing
 		int count = 0; // Remove this after testing
 		
 		for (Pair<Integer, Integer> point : pixels) {
-			if (Math.random() <= proportionSampled && getNumProtrusions(point) == 1) pointsNearEnd.add(point);
-			System.out.println("Finding endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
+			if (Math.random() <= proportionSampled) protrusions.put(point, getNumProtrusions(point));
+			System.out.println("Searching for endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
 			count++; //Remove this after testing
+		}
+		
+		return protrusions;
+	}
+	/*
+	 * START HERE TOMORROW
+	 */
+	public HashMap<Pair<Integer, Integer>, Integer> smoothProtrusionMap(HashMap<Pair<Integer, Integer>, Integer> protrusions) {
+		return protrusions;
+	}
+	/*
+	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as single point from the end of a strand. 
+	 * The method goes through a sampling of the points along the knot, calculates the number of protrusions for each point, 
+	 * then collects all of the points with 1 protrusion and chooses one point from each cluster, then returns those endpoints.
+	 */
+	public ArrayList<Pair<Integer, Integer>> getEndpoints(int numCrossings) {
+		HashMap<Pair<Integer, Integer>, Integer> protrusions = getProtrusionMap();
+		ArrayList<Pair<Integer, Integer>> pointsNearEnd = new ArrayList<Pair<Integer, Integer>>();
+		
+		for (Pair<Integer, Integer> point : protrusions.keySet()) {
+			if (protrusions.get(point) == 1) pointsNearEnd.add(point);
 		}
 		
 		ArrayList<Pair<Integer, Integer>> endPoints = new ArrayList<Pair<Integer, Integer>>();
@@ -235,11 +256,18 @@ public class Recognizer {
 		return endpointPairs;
 	}
 	/*
-	 * START HERE TOMORROW. Just start with pixels, then remove rectangles between paired endpoints. Easy peazy
+	 * Returns the individual arcs (not connected components) of the knot. 
 	 */
-	public HashSet<Pair<Integer, Integer>> getArcPixels(ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints) {
+	public HashSet<HashSet<Pair<Integer, Integer>>> getArcs(ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints) {
 		HashSet<Pair<Integer, Integer>> arcPixels = pixels;
+		ArrayList<Pair<Integer, Integer>> rect = new ArrayList<Pair<Integer, Integer>>();
 		
-		return arcPixels;
+		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pairEndpoints : pairedEndpoints) {
+			// Start changing it here
+			rect = PixelProcessor.getRectangleBetween(pairEndpoints.getKey(), pairEndpoints.getValue());
+			arcPixels.removeAll(rect);
+		}
+		
+		return getComponents(arcPixels);
 	}
 }

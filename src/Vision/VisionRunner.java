@@ -13,7 +13,7 @@ import javafx.util.Pair;
 
 public class VisionRunner {
 	public static void main(String[] args) {
-		String path = "perkoPair.gif";
+		String path = "trefoil.svg";
 		Recognizer rec = new Recognizer(path);
 		
 		BufferedImage testImage = null;
@@ -25,11 +25,13 @@ public class VisionRunner {
 		
 		//testImage = testProtrusions(rec, testImage);
 		
-		ArrayList<Pair<Integer, Integer>> endpoints = rec.getEndpoints(10);
+		ArrayList<Pair<Integer, Integer>> endpoints = rec.getEndpoints(3);
 		testImage = testEndpoints(endpoints, testImage);
 		
 		ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints = rec.pairEndpoints(endpoints); 
 		testImage = testPairingEndpoints(pairedEndpoints, testImage);
+		
+		System.out.println(rec.getArcs(pairedEndpoints).size());
 		
 		File outputfile = new File("images/test_" + path);
         try {
