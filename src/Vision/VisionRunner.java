@@ -13,89 +13,70 @@ import javafx.util.Pair;
 
 public class VisionRunner {
 	public static void main(String[] args) {
-		String path = "6_3.png";
-		Recognizer rec = new Recognizer(path);
-		final int NUM_CROSSINGS = 6;
+		HashMap<String, Integer> paths = new HashMap<String, Integer>();
+		paths.put("4_1.png", 4);
+		paths.put("5_1.png", 5);
+		paths.put("5_2.png", 5);
+		paths.put("6_1.png", 6);
+		paths.put("6_2.png", 6);
+		paths.put("6_3.png", 6);
+		paths.put("7_1.png", 7);
+		paths.put("7_2.png", 7);
+		paths.put("8_1.png", 8);
+		paths.put("8_2.png", 8);
+		paths.put("8_5.png", 8);	//Getting stuck here. Investigate
+		paths.put("newTrefoil2.png", 3); //Also getting stuck here.
+		paths.put("perkoPair.gif", 10);
+		paths.put("redKnot.png", 5);
+		paths.put("trefoil.png", 3);
+		paths.clear();
+		paths.put("redKnot.png", 5);
 		
-		final int SMOOTHING_RADIUS = 3;
-		ArrayList<Integer> numCompSeq = new ArrayList<Integer>();
-		PixelProcessor proc = new PixelProcessor();
-		
-		HashMap<Pair<Integer, Integer>, Integer> protrusions = rec.getProtrusionMap();
-		HashSet<Pair<Integer, Integer>> possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
-		for (Pair<Integer, Integer> point : protrusions.keySet()) {
-			if (protrusions.get(point) == 1) possibleEndpoints.add(point);
-		}
-		proc.setPixels(possibleEndpoints);
-		numCompSeq.add(proc.getComponents().size());
-		
-		while (numCompSeq.get(numCompSeq.size() - 1) > NUM_CROSSINGS * 2) {
-			protrusions = rec.smootheProtrusionMap(protrusions, SMOOTHING_RADIUS);
-			possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
-			for (Pair<Integer, Integer> point : protrusions.keySet()) {
-				if (protrusions.get(point) == 1) possibleEndpoints.add(point);
+		for (String path : paths.keySet()) {
+			System.out.println("Starting " + path);
+			
+			Recognizer rec = new Recognizer(path);
+			
+			BufferedImage testImage = null;
+			try {
+				testImage = ImageIO.read(new File("images/" + path));
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			proc.setPixels(possibleEndpoints);
-			numCompSeq.add(proc.getComponents().size());
-		}
-		
-		System.out.println(numCompSeq);
-		
-		/*BufferedImage testImage = null;
-		try {
-			testImage = ImageIO.read(new File("images/" + path));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}HashMap<Pair<Integer, Integer>, Integer> protrusions = rec.getProtrusionMap();
-		protrusions = rec.smootheProtrusionMap(protrusions, 5);
-		protrusions = rec.smootheProtrusionMap(protrusions, 5);
-		protrusions = rec.smootheProtrusionMap(protrusions, 5);
-		
-		int height = testImage.getHeight();
-		int width = testImage.getWidth();
-		int numP = 0;
-		int[] blackArr = {0, 0, 0};
-		int[] redArr = {255, 0, 0};
-		int[] blueArr = {0, 0, 255};
-		int[] greenArr = {0, 255, 0};
-		int[] whiteArr = {255, 255, 255};
-		int black = PixelProcessor.RGBToInt(blackArr);
-		int red = PixelProcessor.RGBToInt(redArr);
-		int blue = PixelProcessor.RGBToInt(blueArr);
-		int green = PixelProcessor.RGBToInt(greenArr);
-		int white = PixelProcessor.RGBToInt(whiteArr);
-		
-		for (int x = 0; x < width; x++) {
-			for (int y = 0; y < height; y++) {
-				if (protrusions.containsKey(new Pair<Integer, Integer>(x, y))) {
-					numP = protrusions.get(new Pair<Integer, Integer>(x, y));
-					
-					switch (numP) {
-					case 1:
-						testImage.setRGB(x, y, red);
-						break;
-					case 2:
-						testImage.setRGB(x, y, black);
-						break;
-					case 3:
-						testImage.setRGB(x, y, blue);
-						break;
-					default:
-						testImage.setRGB(x, y, green);
-					}
-				} else {
-					testImage.setRGB(x, y, white);
+			
+			Pair<HashSet<HashSet<Pair<Integer, Integer>>>, HashSet<Pair<Integer, Integer>>> arcsAndCrossings = rec.getArcsAndCrossings(rec.getEndpoints(paths.get(path)));
+			HashSet<HashSet<Pair<Integer, Integer>>> arcs = arcsAndCrossings.getKey();
+			HashSet<Pair<Integer, Integer>> crossings = arcsAndCrossings.getValue();
+			HashSet<Pair<Integer, Integer>> arcsRange = new HashSet<Pair<Integer, Integer>>();
+			
+			for (HashSet<Pair<Integer, Integer>> arc : arcs) {
+				arcsRange.addAll(arc);
+			}
+			
+			int[] redArr = {0, 0, 255};
+			int[] whiteArr = {255, 255, 255};
+			int red = PixelProcessor.RGBToInt(redArr);
+			int white = PixelProcessor.RGBToInt(whiteArr);
+			int height = testImage.getHeight();
+			int width = testImage.getWidth();
+			HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
+			for (Pair<Integer, Integer> crossing : crossings) {
+				adj = PixelProcessor.getAdjacentPoints(crossing);
+				testImage.setRGB(crossing.getKey(), crossing.getValue(), red);
+				for (Pair<Integer, Integer> crossingNeighbor : adj) {
+					testImage.setRGB(crossingNeighbor.getKey(), crossingNeighbor.getValue(), red);
 				}
 			}
+			
+			File outputfile = new File("images/test/crossings/testCrossings_" + path);
+	        try {
+	            ImageIO.write(testImage, path.substring(path.length() - 3), outputfile);
+	        } catch (IOException e1) {
+	        	System.err.println("Couldn't print file");
+	        }
+	        
+	        System.out.println("Finished " + path + "\n");
 		}
-		
-		File outputfile = new File("images/test/test_" + path);
-		System.out.println(path.substring(path.length() - 3));
-        try {
-            ImageIO.write(testImage, path.substring(path.length() - 3), outputfile);
-        } catch (IOException e1) {
-        	System.err.println("Couldn't print file");
-        }*/
 	}
 	
 	public static BufferedImage testPairingEndpoints(ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints, BufferedImage testImage) {

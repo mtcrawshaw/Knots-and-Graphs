@@ -210,6 +210,109 @@ public class PixelProcessor {
 		
 		return closestPoint;
 	}
+	public static ArrayList<HashSet<Pair<Integer, Integer>>> quickSortBySize(ArrayList<HashSet<Pair<Integer, Integer>>> list) {
+		if (list.size() <= 1) {
+			ArrayList<HashSet<Pair<Integer, Integer>>> result = new ArrayList<HashSet<Pair<Integer, Integer>>>();
+			for (HashSet<Pair<Integer, Integer>> element : list) result.add(element);
+			return result;
+		}
+		
+		HashSet<Pair<Integer, Integer>> col = list.iterator().next();
+		list.remove(col);
+		int currentSize = col.size();
+		ArrayList<HashSet<Pair<Integer, Integer>>> lesser = new ArrayList<HashSet<Pair<Integer, Integer>>>();
+		ArrayList<HashSet<Pair<Integer, Integer>>> greater = new ArrayList<HashSet<Pair<Integer, Integer>>>();
+		
+		for (HashSet<Pair<Integer, Integer>> temp : list) {
+			if (temp.size() <= currentSize) {
+				lesser.add(temp);
+			} else {
+				greater.add(temp);
+			}
+		}
+		
+		lesser = quickSortBySize(lesser);
+		greater = quickSortBySize(greater);
+		
+		lesser.add(col);
+		lesser.addAll(greater);		
+		return lesser;
+	}
+	public static Pair<Integer, Integer> getMeanRepresentative(HashSet<Pair<Integer, Integer>> cluster) {
+		int sumX = 0, sumY = 0;
+		
+		for (Pair<Integer, Integer> point : cluster) {
+			sumX += point.getKey();
+			sumY += point.getValue();
+		}
+		
+		double avgX = (double)sumX / (double)cluster.size();
+		double avgY = (double)sumY / (double)cluster.size();
+		Pair<Integer, Integer> avgPoint = new Pair<Integer, Integer>((int)Math.round(avgX), (int)Math.round(avgY));
+		
+		return getClosestPoint(avgPoint, cluster);
+	}
+	public ArrayList<Pair<Integer, Integer>> posOfTwoLargestGaps(ArrayList<Pair<Integer, Integer>> curve) {
+		ArrayList<Pair<Integer, Integer>> posGaps = new ArrayList<Pair<Integer, Integer>>();
+		int n = curve.size();
+		int currentLength = -1;
+		
+		int startPos1 = -1, endPos1 = -1, startPos2 = -1, endPos2 = -1;
+		
+		for (int i = 0; i < n; i++) {
+			if (pixels.contains(curve.get(i))) {
+				if (currentLength > 0) {
+					if (startPos1 == -1) {
+						startPos1 = i - currentLength;
+						endPos1 = i;
+					} else {
+						if (currentLength > endPos1 - startPos1) {
+							startPos2 = startPos1;
+							endPos2 = endPos1;
+							startPos1 = i - currentLength;
+							endPos1 = i;
+						} else if (currentLength > endPos2 - startPos2){
+							startPos2 = i - currentLength;
+							endPos2 = i;
+						}
+					}
+					
+					currentLength = -1;
+				}
+			} else {
+				if (currentLength > 0) currentLength++;
+				else currentLength = 1;
+			}
+		}
+		
+		if (currentLength > 0) {
+			if (startPos1 == -1) {
+				startPos1 = n - currentLength;
+				endPos1 = n;
+			} else {
+				if (currentLength > endPos1 - startPos1) {
+					startPos2 = startPos1;
+					endPos2 = endPos1;
+					startPos1 = n - currentLength;
+					endPos1 = n;
+				} else if (currentLength > endPos2 - startPos2){
+					startPos2 = n - currentLength;
+					endPos2 = n;
+				}
+			}
+		}
+		
+		posGaps.add(new Pair<Integer, Integer>(startPos1, endPos1));
+		posGaps.add(new Pair<Integer, Integer>(startPos2, endPos2));
+		return posGaps;
+	}
+	public static HashSet<Pair<Integer, Integer>> findParentCluster(Collection<HashSet<Pair<Integer, Integer>>> clusters, Pair<Integer, Integer> point) {
+		for (HashSet<Pair<Integer, Integer>> cluster : clusters) {
+			if (cluster.contains(point)) return cluster;
+		}
+		
+		return null;
+	}
 	public static int RGBToInt(int[] rgb) {
 		int n = rgb[0];
 		n = (n << 8) + rgb[1];

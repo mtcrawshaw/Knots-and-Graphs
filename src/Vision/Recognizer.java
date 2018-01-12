@@ -70,7 +70,7 @@ public class Recognizer {
 		final int RADIUS_STEP1 = 3;
 		final int RADIUS_STEP2 = 1;
 		final int INITIAL_RADIUS = 1;
-		final double CONTAINED_THRESHOLD = .3;
+		final double CONTAINED_THRESHOLD = .25;
 		
 		int radius = INITIAL_RADIUS;
 		int numSwitches = 0;
@@ -101,16 +101,17 @@ public class Recognizer {
 	public HashMap<Pair<Integer, Integer>, Integer> getProtrusionMap() {
 		HashMap<Pair<Integer, Integer>, Integer> protrusions = new HashMap<Pair<Integer, Integer>, Integer>();
 		
-		final int PERCENT_SAMPLED = 80;
+		final int PERCENT_SAMPLED = 100;
 		double proportionSampled = (double)PERCENT_SAMPLED / 100.0;
 		
-		int n = pixels.size(); // Remove this after testing
-		int count = 0; // Remove this after testing
+		int completed = 0;
+		int total = pixels.size();
 		
 		for (Pair<Integer, Integer> point : pixels) {
 			if (Math.random() <= proportionSampled) protrusions.put(point, getNumProtrusions(point));
-			System.out.println("Searching for endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
-			count++; //Remove this after testing
+			
+			completed++;
+			//System.out.println("Getting protrusion map: " + 100.0* (double)completed / (double)total + "%");
 		}
 		
 		return protrusions;
@@ -144,57 +145,141 @@ public class Recognizer {
 		return smoothedProtrusions;
 	}
 	/*
-	 * START HERE TOMORROW
+	 * Returns a HashSet of HashSets of points representing the connected components of the subset of points with 1 protrusion, after the 
+	 * protrusion map is smoothed until the number of connected components doesn't change. 
 	 */
-	public HashMap<Pair<Integer, Integer>, Integer> completelySmootheProtrusionMap(HashMap<Pair<Integer, Integer>, Integer> protrusions) {
-		final int INITIAL_SMOOTHING_RADIUS = 3;
-		final int SMOOTHING_WINDOW = 3;
-		int numCompSeq[] = new int[SMOOTHING_WINDOW];
+	@SuppressWarnings("unchecked")
+	public HashSet<HashSet<Pair<Integer, Integer>>> getPossibleEndpointClusters(HashMap<Pair<Integer, Integer>, Integer> protrusions) {
+		HashSet<HashSet<Pair<Integer, Integer>>> endpointClusters = new HashSet<HashSet<Pair<Integer, Integer>>>();
 		
+		final double INITIAL_SMOOTHING_RADIUS = 1;
+		final int SMOOTHING_WINDOW = 2;
+		ArrayList<Integer> numCompSeq = new ArrayList<Integer>();
+		double smoothingRadius = INITIAL_SMOOTHING_RADIUS;
+		
+		// Smoothe protrusion map SMOOTHING_WINDOW times to fill array
 		HashSet<Pair<Integer, Integer>> possibleEndpoints = new HashSet <Pair<Integer, Integer>>();
 		for (Pair<Integer, Integer> p : protrusions.keySet()) {
 			if (protrusions.get(p) == 1) possibleEndpoints.add(p);
 		}
 		PixelProcessor proc = new PixelProcessor(possibleEndpoints);
+		endpointClusters = proc.getComponents();
+		numCompSeq.add(endpointClusters.size());
 		
-		return null;
+		HashMap<Pair<Integer, Integer>, Integer> smoothedProtrusions = (HashMap<Pair<Integer, Integer>, Integer>)protrusions.clone();
+		
+		for (int i = 1; i < SMOOTHING_WINDOW; i++) {
+			smoothedProtrusions = smootheProtrusionMap(smoothedProtrusions, smoothingRadius);
+			
+			possibleEndpoints.clear();
+			for (Pair<Integer, Integer> p : smoothedProtrusions.keySet()) {
+				if (smoothedProtrusions.get(p) == 1) possibleEndpoints.add(p);
+			}
+			proc = new PixelProcessor(possibleEndpoints);
+			endpointClusters = proc.getComponents();
+			numCompSeq.add(endpointClusters.size());
+		}
+		
+		HashSet<Integer> numCompSet = new HashSet<Integer>();
+		for (int i = numCompSeq.size() - SMOOTHING_WINDOW; i < numCompSeq.size(); i++) {
+			numCompSet.add(numCompSeq.get(i));
+		}
+		// Smoothe protrusion map until stabilization (number of clusters doesn't change for SMOOTHING_WINDOW smoothings)
+		while (numCompSet.size() != 1) {
+			smoothedProtrusions = smootheProtrusionMap(smoothedProtrusions, smoothingRadius);
+			
+			possibleEndpoints.clear();
+			for (Pair<Integer, Integer> p : smoothedProtrusions.keySet()) {
+				if (smoothedProtrusions.get(p) == 1) possibleEndpoints.add(p);
+			}
+			proc = new PixelProcessor(possibleEndpoints);
+			endpointClusters = proc.getComponents();
+			numCompSeq.add(endpointClusters.size());
+			//numCompSeq.remove(0);
+			
+			numCompSet.clear();
+			for (int i = numCompSeq.size() - SMOOTHING_WINDOW; i < numCompSeq.size(); i++) {
+				numCompSet.add(numCompSeq.get(i));
+			}
+		}
+		
+		return endpointClusters;
 	}
 	/*
 	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as single point from the end of a strand. 
 	 * The method goes through a sampling of the points along the knot, calculates the number of protrusions for each point, 
 	 * then collects all of the points with 1 protrusion and chooses one point from each cluster, then returns those endpoints.
 	 */
-	public ArrayList<Pair<Integer, Integer>> getEndpoints(int numCrossings) {
-		// NO MAINTENANCE NECESSARY ON THIS METHOD - IT'S GOING TO BE COMPLETELY CHANGED SOON
+	@SuppressWarnings("unchecked")
+	public HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> getEndpoints(int numCrossings) {
+		// This method is super rudimentary right now. We will change this soon.
+		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endPoints = new HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>>();
+		
+		// Get and smoothe protrusion map until number of connected components of subset of points with 1 protrusion is 2 * numCrossings.
 		HashMap<Pair<Integer, Integer>, Integer> protrusions = getProtrusionMap();
-		ArrayList<Pair<Integer, Integer>> pointsNearEnd = new ArrayList<Pair<Integer, Integer>>();
-		
+		HashSet<Pair<Integer, Integer>> possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
 		for (Pair<Integer, Integer> point : protrusions.keySet()) {
-			if (protrusions.get(point) == 1) pointsNearEnd.add(point);
+			if (protrusions.get(point) == 1) possibleEndpoints.add(point);
 		}
+		HashSet<HashSet<Pair<Integer, Integer>>> endpointClusters = (new PixelProcessor(possibleEndpoints)).getComponents();
+		HashSet<HashSet<Pair<Integer, Integer>>> prevClusters = (HashSet<HashSet<Pair<Integer, Integer>>>) endpointClusters.clone();
+		int numComp = endpointClusters.size(), prevNumComp = numComp, stableLength = 0;
+		double radius = 1;
+		final int STABILIZATION_THRESHOLD = 10;
 		
-		ArrayList<Pair<Integer, Integer>> endPoints = new ArrayList<Pair<Integer, Integer>>();
-		
-		if (numCrossings <= 0 || pointsNearEnd.size() == 0) return null;
-		
-		double maxMinDistance = 0;
-		double minDistance = 0;
-		int maxMinIndex = 0;
-		endPoints.add(pointsNearEnd.remove(0));
-		
-		while (endPoints.size() < 2 * numCrossings && pointsNearEnd.size() > 0) {
-			maxMinIndex = 1;
-			maxMinDistance = PixelProcessor.calcDistance(pointsNearEnd.get(0), PixelProcessor.getClosestPoint(pointsNearEnd.get(0), endPoints));
-			
-			for (int i = 1; i < pointsNearEnd.size(); i++) {
-				minDistance = PixelProcessor.calcDistance(pointsNearEnd.get(i), PixelProcessor.getClosestPoint(pointsNearEnd.get(i), endPoints));
-				if (minDistance > maxMinDistance) {
-					maxMinDistance = minDistance;
-					maxMinIndex = i;
-				}
+		while (numComp > 2 * numCrossings) {
+			System.out.println("Components: " + numComp);
+			protrusions = smootheProtrusionMap(protrusions, radius);
+			possibleEndpoints.clear();
+			for (Pair<Integer, Integer> point : protrusions.keySet()) {
+				if (protrusions.get(point) == 1) possibleEndpoints.add(point);
 			}
+			prevClusters = (HashSet<HashSet<Pair<Integer, Integer>>>) endpointClusters.clone();
+			endpointClusters = (new PixelProcessor(possibleEndpoints)).getComponents();
+			prevNumComp = numComp;
+			numComp = endpointClusters.size();
 			
-			endPoints.add(pointsNearEnd.remove(maxMinIndex));
+			if (numComp == prevNumComp) stableLength++;
+			else stableLength = 1;
+			
+			if (stableLength >= STABILIZATION_THRESHOLD) {
+				radius += .5;
+				stableLength = 0;
+			}
+		}
+		System.out.println("Final components: " + numComp + " Radius: " + radius);
+		ArrayList<HashSet<Pair<Integer, Integer>>> sortedClusters = new ArrayList<HashSet<Pair<Integer, Integer>>>();
+		
+		if (numComp < 2 * numCrossings) {
+			System.out.println("You're fucked");
+			endpointClusters = (HashSet<HashSet<Pair<Integer, Integer>>>)prevClusters.clone();
+			for (HashSet<Pair<Integer, Integer>> cluster : endpointClusters) sortedClusters.add(cluster);
+			
+			sortedClusters = PixelProcessor.quickSortBySize(sortedClusters);
+			while (sortedClusters.size() > 2 * numCrossings) sortedClusters.remove(sortedClusters.size() - 1);
+		} else {
+			for (HashSet<Pair<Integer, Integer>> cluster : endpointClusters) sortedClusters.add(cluster);
+		}
+		System.out.println("Actual final components: " + sortedClusters.size());
+		
+		// Get one point as a "representative" for each connected component, then pair representatives by distance
+		HashSet<Pair<Integer, Integer>> endpointReps = new HashSet<Pair<Integer, Integer>>();
+		for (HashSet<Pair<Integer, Integer>> cluster : sortedClusters) {
+			endpointReps.add(PixelProcessor.getMeanRepresentative(cluster));
+		}
+		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints = pairEndpoints(endpointReps);
+		
+		// Use pairing of endpoints to choose representative from each cluster that is closest to the mean of the partner cluster
+		HashSet<Pair<Integer, Integer>> keyCluster = new HashSet<Pair<Integer, Integer>>();
+		HashSet<Pair<Integer, Integer>> valueCluster = new HashSet<Pair<Integer, Integer>>();
+		Pair<Integer, Integer> keyRep = new Pair<Integer, Integer>(0, 0);
+		Pair<Integer, Integer> valueRep = new Pair<Integer, Integer>(0, 0);
+		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pair : pairedEndpoints) {
+			keyCluster = PixelProcessor.findParentCluster(sortedClusters, pair.getKey());
+			valueCluster = PixelProcessor.findParentCluster(sortedClusters, pair.getValue());
+			valueRep = PixelProcessor.getClosestPoint(pair.getKey(), valueCluster);
+			keyRep = PixelProcessor.getClosestPoint(pair.getValue(), keyCluster);
+			endPoints.add(new Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>(keyRep, valueRep));
 		}
 		
 		return endPoints;
@@ -208,13 +293,14 @@ public class Recognizer {
 		Pair<Integer, Integer> currentEndpoint = new Pair<Integer, Integer>(0, 0);
 		Pair<Integer, Integer> currentPartner = new Pair<Integer, Integer>(0, 0);
 		
-		int n = endpoints.size(); // Remove this after testing
+		int n = endpoints.size() / 2; // Remove this after testing
 		int count = 0;	// Remove this after testing
 		
 		while (endpoints.size() > 0) {
-			System.out.println("Pairing endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
+			//System.out.println("Pairing endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
 			count++; // Remove this after testing
 			currentEndpoint = endpoints.iterator().next();
+			endpoints.remove(currentEndpoint);
 			currentPartner = PixelProcessor.getClosestPoint(currentEndpoint, endpoints);
 			endpoints.remove(currentPartner);
 			endpointPairs.add(new Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>(currentEndpoint, currentPartner));
@@ -225,17 +311,51 @@ public class Recognizer {
 	/*
 	 * Returns the individual arcs (not connected components) of the knot. 
 	 */
-	public HashSet<HashSet<Pair<Integer, Integer>>> getArcs(ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints) {
+	public Pair<HashSet<HashSet<Pair<Integer, Integer>>>, HashSet<Pair<Integer, Integer>>> getArcsAndCrossings(HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints) {
 		HashSet<Pair<Integer, Integer>> arcPixels = pixels;
-		ArrayList<Pair<Integer, Integer>> rect = new ArrayList<Pair<Integer, Integer>>();
+		HashSet<Pair<Integer, Integer>> crossings = new HashSet<Pair<Integer, Integer>>();
 		
-		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pairEndpoints : pairedEndpoints) {
-			// Start changing it here
-			rect = PixelProcessor.getRectangleBetween(pairEndpoints.getKey(), pairEndpoints.getValue());
-			arcPixels.removeAll(rect);
+		ArrayList<Pair<Integer, Integer>> line = new ArrayList<Pair<Integer, Integer>>();
+		int numPoints;
+		Pair<Integer, Integer> p1, p2, currentPoint;
+		int x1, y1, x2, y2;
+		double t;
+		
+		PixelProcessor proc = new PixelProcessor(pixels);
+		ArrayList<Pair<Integer, Integer>> gaps = new ArrayList<Pair<Integer, Integer>>();
+		
+		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pairEndpoints : endpoints) {
+			p1 = pairEndpoints.getKey();
+			p2 = pairEndpoints.getValue();
+			x1 = p1.getKey();
+			y1 = p1.getValue();
+			x2 = p2.getKey();
+			y2 = p2.getValue();
+			numPoints = Math.abs(x2 - x1) + Math.abs(y2 - y1);
+			line.clear();
+			
+			for (int i = 0; i <= numPoints; i++) {
+				t = (double)i / (double)numPoints;
+				currentPoint = new Pair<Integer, Integer>((int)Math.round((1 - t) * x1 + t * x2), (int)Math.round((1 - t) * y1 + t * y2));
+				line.add(currentPoint);
+			}
+			
+			gaps = proc.posOfTwoLargestGaps(line);
+			int startPos1 = gaps.get(0).getKey(), endPos1 = gaps.get(0).getValue();
+			int startPos2 = gaps.get(1).getKey(), endPos2 = gaps.get(1).getValue();
+			int startStrandPos = Math.min(endPos1, endPos2);
+			int endStrandPos = Math.max(startPos1, startPos2);
+			if (startPos2 == -1) {
+				startStrandPos = 0;
+				endStrandPos = 0;
+			}
+			for (int i = startStrandPos; i < endStrandPos; i++) {
+				arcPixels.removeAll(proc.getAdjacentPixels(line.get(i)));
+			}
+			crossings.add(line.get((startStrandPos + endStrandPos) / 2));
 		}
 		
-		PixelProcessor proc = new PixelProcessor(arcPixels);
-		return proc.getComponents();
+		proc = new PixelProcessor(arcPixels);
+		return new Pair<HashSet<HashSet<Pair<Integer, Integer>>>, HashSet<Pair<Integer, Integer>>>(proc.getComponents(), crossings);
 	}
 }
