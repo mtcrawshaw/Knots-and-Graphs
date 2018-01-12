@@ -15,6 +15,7 @@ import Knot.VirtualKnot;
 
 public class Recognizer {
 	private HashSet<Pair<Integer, Integer>> pixels;
+	private boolean verbose = false;
 	
 	// Constructors
 	public Recognizer(BufferedImage img) {
@@ -38,6 +39,9 @@ public class Recognizer {
 	public HashSet<Pair<Integer, Integer>> getPixels() {
 		return pixels;
 	}
+	public boolean getVerbose() {
+		return verbose;
+	}
 	
 	// Mutators
 	public void setImage(BufferedImage img) {
@@ -53,6 +57,9 @@ public class Recognizer {
 	}
 	public void setPixels(HashSet<Pair<Integer, Integer>> p) {
 		pixels = p;
+	}
+	public void setVerbose(boolean v) {
+		verbose = v;
 	}
 	
 	// Methods
@@ -111,7 +118,8 @@ public class Recognizer {
 			if (Math.random() <= proportionSampled) protrusions.put(point, getNumProtrusions(point));
 			
 			completed++;
-			//System.out.println("Getting protrusion map: " + 100.0* (double)completed / (double)total + "%");
+			if (verbose)
+				System.out.println("Searching for possible endpoints: " + (double)(int)(10000.0 * (double)completed / (double)total) / 100.0 + "%");
 		}
 		
 		return protrusions;
@@ -227,13 +235,16 @@ public class Recognizer {
 		double radius = 1;
 		final int STABILIZATION_THRESHOLD = 10;
 		
+		if (verbose) System.out.println("Finding endpoint clusters");
+		
 		while (numComp > 2 * numCrossings) {
-			System.out.println("Components: " + numComp);
 			protrusions = smootheProtrusionMap(protrusions, radius);
 			possibleEndpoints.clear();
 			for (Pair<Integer, Integer> point : protrusions.keySet()) {
 				if (protrusions.get(point) == 1) possibleEndpoints.add(point);
 			}
+			
+			// We keep the clusters from the last smoothing cycle in case we smoothe too much and a component disappears, in which case we take the largest components from the previous clusters
 			prevClusters = (HashSet<HashSet<Pair<Integer, Integer>>>) endpointClusters.clone();
 			endpointClusters = (new PixelProcessor(possibleEndpoints)).getComponents();
 			prevNumComp = numComp;
@@ -247,11 +258,9 @@ public class Recognizer {
 				stableLength = 0;
 			}
 		}
-		System.out.println("Final components: " + numComp + " Radius: " + radius);
 		ArrayList<HashSet<Pair<Integer, Integer>>> sortedClusters = new ArrayList<HashSet<Pair<Integer, Integer>>>();
 		
 		if (numComp < 2 * numCrossings) {
-			System.out.println("You're fucked");
 			endpointClusters = (HashSet<HashSet<Pair<Integer, Integer>>>)prevClusters.clone();
 			for (HashSet<Pair<Integer, Integer>> cluster : endpointClusters) sortedClusters.add(cluster);
 			
@@ -260,7 +269,6 @@ public class Recognizer {
 		} else {
 			for (HashSet<Pair<Integer, Integer>> cluster : endpointClusters) sortedClusters.add(cluster);
 		}
-		System.out.println("Actual final components: " + sortedClusters.size());
 		
 		// Get one point as a "representative" for each connected component, then pair representatives by distance
 		HashSet<Pair<Integer, Integer>> endpointReps = new HashSet<Pair<Integer, Integer>>();
@@ -293,12 +301,14 @@ public class Recognizer {
 		Pair<Integer, Integer> currentEndpoint = new Pair<Integer, Integer>(0, 0);
 		Pair<Integer, Integer> currentPartner = new Pair<Integer, Integer>(0, 0);
 		
-		int n = endpoints.size() / 2; // Remove this after testing
-		int count = 0;	// Remove this after testing
+		int n = endpoints.size() / 2;
+		int count = 0;
 		
 		while (endpoints.size() > 0) {
-			//System.out.println("Pairing endpoints " + 100.0 * (double)count / (double)n); // Remove this after testing
-			count++; // Remove this after testing
+			count++;
+			if (verbose) 
+				System.out.println("Pairing endpoints " + 100.0 * (double)count / (double)n + "%");
+			
 			currentEndpoint = endpoints.iterator().next();
 			endpoints.remove(currentEndpoint);
 			currentPartner = PixelProcessor.getClosestPoint(currentEndpoint, endpoints);
@@ -309,11 +319,13 @@ public class Recognizer {
 		return endpointPairs;
 	}
 	/*
-	 * Returns the individual arcs (not connected components) of the knot. 
+	 * Returns the individual arcs (not connected components) and crossings of the knot, where each crossing is identified with 4 individual points, each from 1 arc involved in that crossing.
+	 * So the ArrayList is a sequence of groups of 5 points, where each group of 5 points is (crossing, pointFromArc1, pointFromArc2, pointFromArc3, pointFromArc4).
 	 */
-	public Pair<HashSet<HashSet<Pair<Integer, Integer>>>, HashSet<Pair<Integer, Integer>>> getArcsAndCrossings(HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints) {
+	public Pair<HashSet<HashSet<Pair<Integer, Integer>>>, ArrayList<Pair<Integer, Integer>>> getArcsAndCrossings(HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints) {
 		HashSet<Pair<Integer, Integer>> arcPixels = pixels;
-		HashSet<Pair<Integer, Integer>> crossings = new HashSet<Pair<Integer, Integer>>();
+		ArrayList<Pair<Integer, Integer>> crossings = new ArrayList<Pair<Integer, Integer>>();
+		Pair<Integer, Integer> crossing = new Pair<Integer, Integer>(0, 0);
 		
 		ArrayList<Pair<Integer, Integer>> line = new ArrayList<Pair<Integer, Integer>>();
 		int numPoints;
@@ -324,6 +336,12 @@ public class Recognizer {
 		PixelProcessor proc = new PixelProcessor(pixels);
 		ArrayList<Pair<Integer, Integer>> gaps = new ArrayList<Pair<Integer, Integer>>();
 		
+		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair<Integer, Integer>>();
+		boolean lookingForArc = true;
+		int circleSize = 0, numArcPoints = 0;
+		double radius = 0;
+		
+		// Iterate over each pair of endpoints, i.e. each crossing
 		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pairEndpoints : endpoints) {
 			p1 = pairEndpoints.getKey();
 			p2 = pairEndpoints.getValue();
@@ -334,12 +352,14 @@ public class Recognizer {
 			numPoints = Math.abs(x2 - x1) + Math.abs(y2 - y1);
 			line.clear();
 			
+			// Generate the line between the two paired endpoints
 			for (int i = 0; i <= numPoints; i++) {
 				t = (double)i / (double)numPoints;
 				currentPoint = new Pair<Integer, Integer>((int)Math.round((1 - t) * x1 + t * x2), (int)Math.round((1 - t) * y1 + t * y2));
 				line.add(currentPoint);
 			}
 			
+			// Look for the two "gaps" in the line - the two largest continguous regions of the line that aren't contained in pixels. Remove what lies between the two gaps from pixels to get arcs
 			gaps = proc.posOfTwoLargestGaps(line);
 			int startPos1 = gaps.get(0).getKey(), endPos1 = gaps.get(0).getValue();
 			int startPos2 = gaps.get(1).getKey(), endPos2 = gaps.get(1).getValue();
@@ -352,10 +372,36 @@ public class Recognizer {
 			for (int i = startStrandPos; i < endStrandPos; i++) {
 				arcPixels.removeAll(proc.getAdjacentPixels(line.get(i)));
 			}
-			crossings.add(line.get((startStrandPos + endStrandPos) / 2));
+			crossing = line.get((startStrandPos + endStrandPos) / 2);
+			crossings.add(crossing);
+			
+			// Add first two points associated with this crossing
+			crossings.add(p1);
+			crossings.add(p2);
+			
+			// Find two other points associated with this crossing
+			radius = (PixelProcessor.calcDistance(crossing, p1) + PixelProcessor.calcDistance(crossing, p2)) / 2.0;
+			circle = PixelProcessor.getCircle(crossing, radius);
+			lookingForArc = true;
+			circleSize = circle.size();
+			numArcPoints = 0;
+			
+			for (int i = 0; i < circleSize; i++) {
+				// Put condition here about adding points to crossings depending on if points are in arcPixels and not connected to either previous endPoint
+				/*if (lookingForArc && arcPixels.contains(circle.get(i))) {
+					lookingForArc = false;
+					crossings.add(circle.get(i));
+					numArcPoints++;
+					
+					if (numArcPoints == 2) break;
+				} else if (!lookingForArc && !arcPixels.contains(circle.get(i))) {
+					lookingForArc = true;
+				}*/
+			}
 		}
 		
 		proc = new PixelProcessor(arcPixels);
-		return new Pair<HashSet<HashSet<Pair<Integer, Integer>>>, HashSet<Pair<Integer, Integer>>>(proc.getComponents(), crossings);
+		return new Pair<HashSet<HashSet<Pair<Integer, Integer>>>, ArrayList<Pair<Integer, Integer>>>(proc.getComponents(), crossings);
 	}
+	
 }

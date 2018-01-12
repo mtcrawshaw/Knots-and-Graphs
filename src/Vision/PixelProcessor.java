@@ -313,6 +313,11 @@ public class PixelProcessor {
 		
 		return null;
 	}
+	public boolean areConnected(Collection<Pair<Integer, Integer>> points, Pair<Integer, Integer> p1, Pair<Integer, Integer> p2) {
+		// START HERE
+		
+		return true;
+	}
 	public static int RGBToInt(int[] rgb) {
 		int n = rgb[0];
 		n = (n << 8) + rgb[1];
