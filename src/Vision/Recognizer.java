@@ -64,7 +64,16 @@ public class Recognizer {
 	}
 	
 	// Methods
-	public VirtualKnot getKnot() {
+	public VirtualKnot getKnot(int numCrossings) {
+		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints = getEndpoints(numCrossings);
+		HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLines = getOverstrandLineMap(endpoints);
+		HashMap<Pair<Integer, Integer>, Integer> arcsMap = getArcsMap(overstrandLines);
+		ArrayList<ArrayList<Pair<Integer, Integer>>> crossings = getCrossings(overstrandLines, arcsMap);
+		crossings = getCrossingsWithDistinctReps(crossings, arcsMap);
+		HashMap<Pair<Integer, Integer>, Boolean> orientation = orientArcs(crossings, arcsMap);
+		crossings = orderArcsInCrossings(crossings, orientation);
+		
+		
 		return null;
 	}
 	/*
@@ -491,7 +500,9 @@ public class Recognizer {
 		return crossings;
 	}
 	/*
-	 * START HERE NEXT TIME. We have partnered the arc representatives and now we need to give each representative an orientation
+	 * Returns a HashMap of point -> boolean to represent the orientation of the knot. Each point in the key set of the map is one of the 4 representative
+	 * points for some crossing. A value of true for a representative means the orientation is going out from the crossing on the corresponding arc, false
+	 * means in.
 	 */
 	@SuppressWarnings("unchecked")
 	public HashMap<Pair<Integer, Integer>, Boolean> orientArcs(ArrayList<ArrayList<Pair<Integer, Integer>>> crossings, HashMap<Pair<Integer, Integer>, Integer> arcsMap) {
@@ -531,36 +542,39 @@ public class Recognizer {
 				arcPartners.put(new Pair<Integer, Integer>(repPartner.getKey(), repPartner.getValue()), new Pair<Integer, Integer>(rep.getKey(), rep.getValue()));
 			}
 			
-			arcReps.add(rep);
+			arcReps.add(new Pair<Integer, Integer>(rep.getKey(), rep.getValue()));
 			repsInArc.set(arc, (HashSet<Pair<Integer, Integer>>)arcReps.clone());
 		}
 		
-		/*Pair<Integer, Integer> rep = crossingPartners.keySet().iterator().next();
-		Pair<Integer, Integer> next;
-		orientation.put(rep, true);
+		rep = crossingPartners.keySet().iterator().next();
+		orientation.put(new Pair<Integer, Integer>(rep.getKey(), rep.getValue()), true);
 		rep = crossingPartners.get(rep);
+		orientation.put(new Pair<Integer, Integer>(rep.getKey(), rep.getValue()), false);
+		rep = arcPartners.get(rep);
 		
-		// Assign orientation to each representative, traversing from representative to it's crossingPartner, to that representative's arc partner, and again
+		// Assign orientation to each representative, traversing from representative to its crossingPartner, to that representative's arc partner, and again
 		while (!orientation.keySet().contains(rep)) {
-			orientation.put(rep, false);
-			
-			// Possible failure point if there are no other representative in the same arc as rec
-			
-			arcIterator = arcsMap.keySet().iterator();
-			next = arcIterator.next();
-			while (arcIterator.hasNext() && (arcsMap.get(next) != arcsMap.get(rep) || next.equals(rep))) {
-				next = arcIterator.next();
-			}
-			
-			if (arcsMap.get(next) == arcsMap.get(rep)) {
-				rep = next;
-				orientation.put(rep, true);
-			} else {
-				System.err.println("We're fucked");
-				break;
-			}
-		}*/
+			orientation.put(new Pair<Integer, Integer>(rep.getKey(), rep.getValue()), true);
+			rep = crossingPartners.get(rep);
+			orientation.put(new Pair<Integer, Integer>(rep.getKey(), rep.getValue()), false);
+			rep = arcPartners.get(rep);
+		}
 		
 		return orientation;
+	}
+	public ArrayList<ArrayList<Pair<Integer, Integer>>> orderArcsInCrossings(ArrayList<ArrayList<Pair<Integer, Integer>>> crossings, HashMap<Pair<Integer, Integer>, Boolean> orientation) {
+		ArrayList<ArrayList<Pair<Integer, Integer>>> orderedCrossings = new ArrayList<ArrayList<Pair<Integer, Integer>>>();
+		ArrayList<Pair<Integer, Integer>> orderedCrossing = new ArrayList<Pair<Integer, Integer>>();
+		
+		for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
+			orderedCrossing = new ArrayList<Pair<Integer, Integer>>();
+			orderedCrossing.add(crossing.get(0));
+			
+			for (int i = 1; i < crossing.size(); i++) {
+				
+			}
+		}
+		
+		return null;
 	}
 }
