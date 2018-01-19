@@ -63,6 +63,12 @@ public class ClassicalCrossing {
 		labels[2] = l[2];
 		labels[3] = l[3];
 	}
+	public void setLabels(int l1, int l2, int l3, int l4) {
+		labels[0] = l1;
+		labels[1] = l2;
+		labels[2] = l3;
+		labels[3] = l4;
+	}
 	public void setLabel(int index, int l){
 		labels[index] = l;
 	}

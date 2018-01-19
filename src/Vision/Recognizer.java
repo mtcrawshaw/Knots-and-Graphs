@@ -11,7 +11,7 @@ import java.util.Iterator;
 import javax.imageio.ImageIO;
 
 import javafx.util.Pair;
-
+import Knot.ClassicalCrossing;
 import Knot.VirtualKnot;
 
 public class Recognizer {
@@ -64,6 +64,9 @@ public class Recognizer {
 	}
 	
 	// Methods
+	/*
+	 * Finds the knot represented by the image given.
+	 */
 	public VirtualKnot getKnot(int numCrossings) {
 		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints = getEndpoints(numCrossings);
 		HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLines = getOverstrandLineMap(endpoints);
@@ -73,8 +76,23 @@ public class Recognizer {
 		HashMap<Pair<Integer, Integer>, Boolean> orientation = orientArcs(crossings, arcsMap);
 		crossings = orderArcsInCrossings(crossings, orientation);
 		
+		VirtualKnot knot = new VirtualKnot();
+		ClassicalCrossing c = new ClassicalCrossing();
+		int[] arcLabels = new int[4];
+		boolean writhe = true;
 		
-		return null;
+		for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
+			for (int i = 0; i < 4; i++) {
+				arcLabels[i] = arcsMap.get(crossing.get(i + 1));
+			}
+			writhe = getWritheFromCrossing(crossing, orientation);
+			
+			c.setLabels(arcLabels);
+			c.setCrossingType(writhe);
+			knot.addCrossing(c);
+		}
+		
+		return knot;
 	}
 	/*
 	 * Finds the number of "protrusions" of the knot at a given point. For example, if the point is an endpoint of a strand 
@@ -562,19 +580,71 @@ public class Recognizer {
 		
 		return orientation;
 	}
+	/*
+	 * Orders the reps of each crossing so that the first rep is the out rep of the overstrand, and the others follow in counterclockwise order. Takes
+	 * as input the crossings and the orientation of each rep.
+	 */
 	public ArrayList<ArrayList<Pair<Integer, Integer>>> orderArcsInCrossings(ArrayList<ArrayList<Pair<Integer, Integer>>> crossings, HashMap<Pair<Integer, Integer>, Boolean> orientation) {
 		ArrayList<ArrayList<Pair<Integer, Integer>>> orderedCrossings = new ArrayList<ArrayList<Pair<Integer, Integer>>>();
 		ArrayList<Pair<Integer, Integer>> orderedCrossing = new ArrayList<Pair<Integer, Integer>>();
+		int firstRep = -1;
+		int partnerIndex = 0;
+		int index = 0;
 		
+		// Creating a map from point to component number, so we can quickly tell which points are in the same component
+		HashSet<HashSet<Pair<Integer, Integer>>> components = (new PixelProcessor(pixels)).getComponents();
+		HashMap<Pair<Integer, Integer>, Integer> componentMap = new HashMap<Pair<Integer, Integer>, Integer>();
+		int componentNum = 0;
+		
+		for (HashSet<Pair<Integer, Integer>> component : components) {
+			for (Pair<Integer, Integer> point : component) {
+				componentMap.put(point, componentNum);
+			}
+			
+			componentNum++;
+		}
+		
+		// Ordering each crossing by finding which representative is oriented out and part of the over strand
 		for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
 			orderedCrossing = new ArrayList<Pair<Integer, Integer>>();
 			orderedCrossing.add(crossing.get(0));
+			firstRep = -1;
 			
+			// Find which rep should be first in ordered crossing
 			for (int i = 1; i < crossing.size(); i++) {
+				partnerIndex = i + ((i <= 2) ? 2 : -2);
 				
+				// This condition just says if the rep is oriented out and is connected to its partner, i.e. part of the overstrand of the crossing
+				if (orientation.get(crossing.get(i)) && componentMap.get(crossing.get(i)) == componentMap.get(crossing.get(partnerIndex))) {
+					firstRep = i;
+					break;
+				}
 			}
+			
+			// If such a rep is found, reorder reps in crossing
+			if (firstRep != -1) {
+				orderedCrossing.add(crossing.get(firstRep));
+				index = firstRep + 1;
+				if (index == 5) index = 1;
+				
+				while (index != firstRep) {					
+					orderedCrossing.add(crossing.get(index));
+					
+					index++;
+					if (index == 5) index = 1;
+				}
+			}
+			
+			orderedCrossings.add(orderedCrossing);
 		}
 		
-		return null;
+		return orderedCrossings;
+	}
+	/*
+	 * Given an ArrayList of 5 points representing a crossing (assuming that the 4 arc representatives have been ordered) and
+	 * the orientation of the arc representatives, returns the writhe of the crossing.
+	 */
+	public boolean getWritheFromCrossing(ArrayList<Pair<Integer, Integer>> crossing, HashMap<Pair<Integer, Integer>, Boolean> orientation) {
+		return orientation.get(crossing.get(2));
 	}
 }

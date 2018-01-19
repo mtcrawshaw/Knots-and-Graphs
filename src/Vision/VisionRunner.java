@@ -1,14 +1,17 @@
 package Vision;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
 import javax.imageio.ImageIO;
 
+import Knot.VirtualKnot;
 import javafx.util.Pair;
 
 public class VisionRunner {
@@ -30,12 +33,26 @@ public class VisionRunner {
 		paths.put("redKnot.png", 5);
 		paths.put("trefoil.png", 3);
 		
+		PrintWriter writer = null;
+		try {
+			writer = new PrintWriter("images/test/knotTest.txt", "UTF-8");
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		
 		for (String path : paths.keySet()) {
 			System.out.println("Starting " + path);
 			
 			Recognizer rec = new Recognizer(path);
+			VirtualKnot knot = rec.getKnot(paths.get(path));
+			writer.println(path);
+			writer.println(knot.toString());
+			writer.println(knot.getNormalizedArrowPolynomial());
+			writer.println();
 			
-			BufferedImage testImage = null;
+			/*BufferedImage testImage = null;
 			try {
 				testImage = ImageIO.read(new File("images/" + path));
 			} catch (IOException e) {
@@ -48,9 +65,11 @@ public class VisionRunner {
 			ArrayList<ArrayList<Pair<Integer, Integer>>> crossings = rec.getCrossings(overstrandLines, arcsMap);
 			crossings = rec.getCrossingsWithDistinctReps(crossings, arcsMap);
 			HashMap<Pair<Integer, Integer>, Boolean> orientation = rec.orientArcs(crossings, arcsMap);
+			crossings = rec.orderArcsInCrossings(crossings, orientation);
 			
-			int[][] colorArrs = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {255, 0, 255}, {0, 255, 255}, {255, 255, 255}};
-			int[] colors = new int[7];
+			//					red			  green		   blue			purple		   yellow		  white
+			int[][] colorArrs = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 0, 255}, {0, 255, 255}, {255, 255, 255}};
+			int[] colors = new int[6];
 			
 			for (int i = 0; i < colors.length; i++) {
 				colors[i] = PixelProcessor.RGBToInt(colorArrs[i]);
@@ -63,40 +82,24 @@ public class VisionRunner {
 			
 			for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
 				for (int i = 0; i < crossing.size(); i++) {
-					adj = PixelProcessor.getAnnulus(crossing.get(i), 0, 3);
+					adj = PixelProcessor.getAnnulus(crossing.get(i), 0, i);
 					
 					for (Pair<Integer, Integer> point : adj) {
-						testImage.setRGB(point.getKey(), point.getValue(), (i == 0) ? colors[4] : colors[5]);
+						testImage.setRGB(point.getKey(), point.getValue(), colors[i]);
 					}
 				}
 			}
 			
-			File outputfile = new File("images/test/crossings/testCrossings_" + path);
+			File outputfile = new File("images/test/orderCrossings/testOrderCrossings_" + path);
 	        try {
 	            ImageIO.write(testImage, path.substring(path.length() - 3), outputfile);
 	        } catch (IOException e1) {
 	        	System.err.println("Couldn't print file");
-	        }
+	        }*/
 	        
 	        System.out.println("Finished " + path + "\n");
 		}
-	}
-	
-	public static BufferedImage testPairingEndpoints(ArrayList<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints, BufferedImage testImage) {
-		ArrayList<Pair<Integer, Integer>> rect = new ArrayList<Pair<Integer, Integer>>();
 		
-		int[] colorArr = {0, 0, 0};
-		int color = PixelProcessor.RGBToInt(colorArr);
-		
-		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pairEndpoints : pairedEndpoints) {
-			rect = PixelProcessor.getRectangleBetween(pairEndpoints.getKey(), pairEndpoints.getValue());
-			
-			for (Pair<Integer, Integer> point : rect) {
-				if (0 <= point.getKey() && point.getKey() < testImage.getWidth() && 0 <= point.getValue() && point.getValue() < testImage.getHeight()) 
-					testImage.setRGB(point.getKey(), point.getValue(), color);
-			}
-		}
-		
-		return testImage;
+		writer.close();
 	}
 }
