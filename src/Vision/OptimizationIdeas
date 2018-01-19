@@ -26,6 +26,9 @@ Time:
 	- Find a different, faster way to cluster the possible endpoints. May not be as important, since finding endpoints doesn't seem to take too long. 
 
 Accuracy:
+- Overall
+	- Change connected components to allow for another parameter ADJACENT_DIST, so that two pixels p1 and p2 are considered connected if d(p1, p2) <= ADJACENT_DIST.
+	  This will help minimize the effects of noise for sure. 
 - getNumProtrusions():
 	UNNECESSARY - When the number of components of annulus intersect pixels is calculated, the result can be thrown off since the pixels
 	  only occur at discrete points, so sometimes what should be a single component is inconveniently split into multiple components.
@@ -65,3 +68,10 @@ Accuracy:
 	    then round. This may eliminate isolated points. Even if we don't keep the current method, I think this smoothing might help in general. 
 	  - Run k-means multiple times with different centroids, somehow "average" results.
 	  - Go find more clustering algorithms. Hierarchical clustering doesn't seem like a great idea. Can look at mixture of Gaussians. 
+- getCrossings():
+	- Find a more reliable way to extract the 4 arcs from each crossing. On one of the test cases, this method seemed to think that this crossing should
+	  only be associated with 3 arcs, which obviously isn't true. Right now we are just going around the circle looking for 4 intersections of the circle
+	  with arcPixels. We could do some kind of rudimentary clustering to look for 4 largest sections, we could increase the radius of the circle. Better option
+	  could be to increase the radius of the circle until it has 8 switches and then take those. I like that idea the best actually, will implement this. Another
+	  thing that we could possibly do that would probably be more costly is: for each crossing, find 4 closest points that are in distinct arcs, use those as reps.
+	  If we did this, then we would have to sort them by angle afterward to keep up assumptions that later methods use.  

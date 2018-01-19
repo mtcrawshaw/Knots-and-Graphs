@@ -319,29 +319,26 @@ public class Recognizer {
 		return endpointPairs;
 	}
 	/*
-	 * Returns the individual arcs (not connected components) and crossings of the knot, where each crossing is identified with 4 individual points, each from 1 arc involved in that crossing.
-	 * So the ArrayList is a sequence of groups of 5 points, where each group of 5 points is (crossing, pointFromArc1, pointFromArc2, pointFromArc3, pointFromArc4).
+	 * Returns the lines across the overstrand between each pair of endpoints, i.e. each crossing. Specifically, for each pair of endpoints,
+	 * this function "draws" a line between the two endpoints, finds the section of that line that intersects the overstrand, and adds that line
+	 * to the list. Returns the list of these lines. 
 	 */
-	public Pair<HashSet<HashSet<Pair<Integer, Integer>>>, ArrayList<Pair<Integer, Integer>>> getArcsAndCrossings(HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints) {
-		HashSet<Pair<Integer, Integer>> arcPixels = pixels;
-		ArrayList<Pair<Integer, Integer>> crossings = new ArrayList<Pair<Integer, Integer>>();
-		Pair<Integer, Integer> crossing = new Pair<Integer, Integer>(0, 0);
+	@SuppressWarnings("unchecked")
+	public HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> getOverstrandLineMap(HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints) {
+		HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLines = new HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>>();
 		
 		ArrayList<Pair<Integer, Integer>> line = new ArrayList<Pair<Integer, Integer>>();
-		int numPoints;
-		Pair<Integer, Integer> p1, p2, currentPoint;
-		int x1, y1, x2, y2;
+		ArrayList<Pair<Integer, Integer>> strandLine = new ArrayList<Pair<Integer, Integer>>();
+		int numPoints, x1, y1, x2, y2;
 		double t;
+		Pair<Integer, Integer> p1, p2, currentPoint;
 		
 		PixelProcessor proc = new PixelProcessor(pixels);
 		ArrayList<Pair<Integer, Integer>> gaps = new ArrayList<Pair<Integer, Integer>>();
+		int startPos1, startPos2, endPos1, endPos2;
+		int startStrandPos, endStrandPos;
 		
-		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair<Integer, Integer>>();
-		boolean lookingForArc = true;
-		int circleSize = 0, numArcPoints = 0;
-		double radius = 0;
-		
-		// Iterate over each pair of endpoints, i.e. each crossing
+		// Iterate over the pairs of endpoints
 		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pairEndpoints : endpoints) {
 			p1 = pairEndpoints.getKey();
 			p2 = pairEndpoints.getValue();
@@ -351,6 +348,7 @@ public class Recognizer {
 			y2 = p2.getValue();
 			numPoints = Math.abs(x2 - x1) + Math.abs(y2 - y1);
 			line.clear();
+			strandLine.clear();
 			
 			// Generate the line between the two paired endpoints
 			for (int i = 0; i <= numPoints; i++) {
@@ -359,49 +357,156 @@ public class Recognizer {
 				line.add(currentPoint);
 			}
 			
-			// Look for the two "gaps" in the line - the two largest continguous regions of the line that aren't contained in pixels. Remove what lies between the two gaps from pixels to get arcs
+			// Look for the two "gaps" in the line - the two largest continguous regions of the line that aren't contained in pixels.
+			// The region between these two gaps should be the line across the overstrand. 
 			gaps = proc.posOfTwoLargestGaps(line);
-			int startPos1 = gaps.get(0).getKey(), endPos1 = gaps.get(0).getValue();
-			int startPos2 = gaps.get(1).getKey(), endPos2 = gaps.get(1).getValue();
-			int startStrandPos = Math.min(endPos1, endPos2);
-			int endStrandPos = Math.max(startPos1, startPos2);
+			startPos1 = gaps.get(0).getKey();
+			endPos1 = gaps.get(0).getValue();
+			startPos2 = gaps.get(1).getKey();
+			endPos2 = gaps.get(1).getValue();
+			startStrandPos = Math.min(endPos1, endPos2);
+			endStrandPos = Math.max(startPos1, startPos2);
+			
 			if (startPos2 == -1) {
 				startStrandPos = 0;
 				endStrandPos = 0;
 			}
-			for (int i = startStrandPos; i < endStrandPos; i++) {
-				arcPixels.removeAll(proc.getAdjacentPixels(line.get(i)));
+			
+			for (int i = startStrandPos - 3; i <= endStrandPos + 3; i++) {
+				if (i >= 0 && i < line.size()) strandLine.add(line.get(i));
 			}
-			crossing = line.get((startStrandPos + endStrandPos) / 2);
-			crossings.add(crossing);
-			
-			// Add first two points associated with this crossing
-			crossings.add(p1);
-			crossings.add(p2);
-			
-			// Find two other points associated with this crossing
-			radius = (PixelProcessor.calcDistance(crossing, p1) + PixelProcessor.calcDistance(crossing, p2)) / 2.0;
-			circle = PixelProcessor.getCircle(crossing, radius);
-			lookingForArc = true;
-			circleSize = circle.size();
-			numArcPoints = 0;
-			
-			for (int i = 0; i < circleSize; i++) {
-				// Put condition here about adding points to crossings depending on if points are in arcPixels and not connected to either previous endPoint
-				/*if (lookingForArc && arcPixels.contains(circle.get(i))) {
-					lookingForArc = false;
-					crossings.add(circle.get(i));
-					numArcPoints++;
-					
-					if (numArcPoints == 2) break;
-				} else if (!lookingForArc && !arcPixels.contains(circle.get(i))) {
-					lookingForArc = true;
-				}*/
+			overstrandLines.put(pairEndpoints, (ArrayList<Pair<Integer, Integer>>)strandLine.clone());
+		}
+		
+		return overstrandLines;
+	}
+	/*
+	 * Returns a HashMap of pixel -> arc index. This is a more useful format for the arcs than a HashSet of HashSets that just the collection of arcs,
+	 * because we want to use this information to be able to quickly look up the arc index of a single point.
+	 */
+	@SuppressWarnings("unchecked")
+	public HashMap<Pair<Integer, Integer>, Integer> getArcsMap(HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLineMap) {
+		HashSet<Pair<Integer, Integer>> arcPixels = (HashSet<Pair<Integer, Integer>>) pixels.clone();
+		PixelProcessor proc = new PixelProcessor(pixels);
+		
+		// For each line, remove all of the points adjacent to this line from the pixels set to get a set of pixels who connected components are the arcs
+		for (ArrayList<Pair<Integer, Integer>> overstrandLine : overstrandLineMap.values()) {
+			for (Pair<Integer, Integer> linePoint : overstrandLine) {
+				arcPixels.removeAll(proc.getAdjacentPixels(linePoint));
 			}
 		}
 		
-		proc = new PixelProcessor(arcPixels);
-		return new Pair<HashSet<HashSet<Pair<Integer, Integer>>>, ArrayList<Pair<Integer, Integer>>>(proc.getComponents(), crossings);
+		HashSet<HashSet<Pair<Integer, Integer>>> arcs = (new PixelProcessor(arcPixels)).getComponents();
+		HashMap<Pair<Integer, Integer>, Integer> arcsMap = new HashMap<Pair<Integer, Integer>, Integer>();
+		int arcIndex = 0;
+		
+		for (HashSet<Pair<Integer, Integer>> arc : arcs) {
+			for (Pair<Integer, Integer> arcPoint : arc) {
+				arcsMap.put(arcPoint, arcIndex);
+			}
+			
+			arcIndex++;
+		}
+		
+		return arcsMap;
 	}
-	
+	/*
+	 * Returns an ArrayList of points that represents a sequence of 5-tuples of crossings. Each 5-tuple represents a crossing. The first element
+	 * of the 5-tuple is a point near the center of the crossing, then the other 4 elements are 4 points from each arc associated with that crossing.
+	 * It is important to note that these points aren't ordered as they should be for the planar diagram, since such an ordering can't be done
+	 * until the arcs have been oriented, but they are in order of traversal around the circle, so that 1 and 3 are paired, and 2 and 4 are paired. 
+	 */
+	@SuppressWarnings("unchecked")
+	public ArrayList<ArrayList<Pair<Integer, Integer>>> getCrossings(HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLineMap, HashMap<Pair<Integer, Integer>, Integer> arcsMap) {
+		ArrayList<ArrayList<Pair<Integer, Integer>>> crossings = new ArrayList<ArrayList<Pair<Integer, Integer>>>();
+		
+		ArrayList<Pair<Integer, Integer>> crossing = new ArrayList<Pair<Integer, Integer>>();
+		ArrayList<Pair<Integer, Integer>> overstrandLine = new ArrayList<Pair<Integer, Integer>>();
+		Pair<Integer, Integer> center, endpoint1, endpoint2, currentPoint;
+		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair<Integer, Integer>>();
+		HashSet<Integer> arcsAlreadyFound = new HashSet<Integer>();
+		double radius;
+		int numPoints;
+		
+		// Iterate over pairs of endpoints to get 5-tuple corresponding to each crossing
+		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pairEndpoints: overstrandLineMap.keySet()) {
+			overstrandLine = overstrandLineMap.get(pairEndpoints);
+			center = overstrandLine.get(overstrandLine.size() / 2);
+			endpoint1 = pairEndpoints.getKey();
+			endpoint2 = pairEndpoints.getValue();
+			
+			radius = 2 + Math.max(PixelProcessor.calcDistance(center, endpoint1), PixelProcessor.calcDistance(center, endpoint2));
+			circle = PixelProcessor.getCircle(center, radius);
+			numPoints = circle.size();
+			arcsAlreadyFound.clear();
+			
+			crossing.clear();
+			crossing.add(center);
+			
+			// Traverse circle centered at center of crossing, look for intersections with surrounding arcs
+			for (int i = 0; i < numPoints; i++) {
+				currentPoint = circle.get(i);
+				
+				if (arcsMap.containsKey(currentPoint) && !arcsAlreadyFound.contains(arcsMap.get(currentPoint))) {
+					crossing.add(currentPoint);
+					arcsAlreadyFound.add(arcsMap.get(currentPoint));
+					
+					if (crossing.size() == 5) break;
+				}
+			}
+			
+			while (crossing.size() < 5) {
+				crossing.add(new Pair<Integer, Integer>(0, 0));
+			}
+			crossings.add((ArrayList<Pair<Integer, Integer>>)crossing.clone());
+		}
+		
+		return crossings;
+	}	
+	/*
+	 * START HERE NEXT TIME. We have partnered the arc representatives and now we need to give each representative an orientation
+	 */
+	public HashMap<Pair<Integer, Integer>, Boolean> orientArcs(ArrayList<ArrayList<Pair<Integer, Integer>>> crossings, HashSet<HashSet<Pair<Integer, Integer>>> arcs) {
+		HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>> partners = new HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>>();
+		
+		HashSet<Pair<Integer, Integer>> arcPixels = new HashSet<Pair<Integer, Integer>>();
+		for (HashSet<Pair<Integer, Integer>> arc : arcs) {
+			arcPixels.addAll(arc);
+		}
+		
+		// This map is used so that it is easier to iterate over the 4 pairs
+		HashMap<Integer, Integer> indexPartners = new HashMap<Integer, Integer>();
+		indexPartners.put(1, 3);
+		indexPartners.put(2, 4);
+		
+		int value;
+		
+		// Iterating over each crossing to pair each arc representative for each crossing
+		for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
+			for (Integer key : indexPartners.keySet()) {
+				value = indexPartners.get(key);
+				
+				// This whole weird business is just to ensure that we don't try to put a key into partners that is already there. Even though the representative points from each crossing
+				// should be distinct, we put this in just to make sure. If the map already contains a certain rep, we just replace that rep with the next closest point in the range of the set of arcs.
+				while (partners.containsKey(crossing.get(key)) || partners.containsKey(crossing.get(value))) {
+					if (partners.containsKey(crossing.get(key))) {
+						arcPixels.remove(crossing.get(key));
+						crossing.set(key, PixelProcessor.getClosestPoint(crossing.get(key), arcPixels));
+						arcPixels.add(crossing.get(key));
+					}
+					
+					if (partners.containsKey(crossing.get(value))) {
+						arcPixels.remove(crossing.get(value));
+						crossing.set(value, PixelProcessor.getClosestPoint(crossing.get(value), arcPixels));
+						arcPixels.add(crossing.get(value));
+					}
+				}
+				
+				partners.put(crossing.get(key), crossing.get(value));
+				partners.put(crossing.get(value), crossing.get(key));
+			}
+		}
+		
+		return null;
+	}
 }

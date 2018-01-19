@@ -24,10 +24,10 @@ public class VisionRunner {
 		paths.put("7_2.png", 7);
 		paths.put("8_1.png", 8);
 		paths.put("8_2.png", 8);
-		paths.put("8_5.png", 8);	//Getting stuck here. Investigate
-		paths.put("newTrefoil2.png", 3); //Also getting stuck here.
-		//paths.put("perkoPair.gif", 10);
-		//paths.put("redKnot.png", 5);
+		paths.put("8_5.png", 8);
+		paths.put("newTrefoil2.png", 3);
+		paths.put("perkoPair.gif", 10);
+		paths.put("redKnot.png", 5);
 		paths.put("trefoil.png", 3);
 		
 		for (String path : paths.keySet()) {
@@ -42,34 +42,32 @@ public class VisionRunner {
 				e.printStackTrace();
 			}
 			
-			Pair<HashSet<HashSet<Pair<Integer, Integer>>>, ArrayList<Pair<Integer, Integer>>> arcsAndCrossings = rec.getArcsAndCrossings(rec.getEndpoints(paths.get(path)));
-			HashSet<HashSet<Pair<Integer, Integer>>> arcs = arcsAndCrossings.getKey();
-			ArrayList<Pair<Integer, Integer>> crossings = arcsAndCrossings.getValue();
-			HashSet<Pair<Integer, Integer>> arcsRange = new HashSet<Pair<Integer, Integer>>();
+			HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints = rec.getEndpoints(paths.get(path));
+			HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLines = rec.getOverstrandLineMap(endpoints);
+			HashMap<Pair<Integer, Integer>, Integer> arcsMap = rec.getArcsMap(overstrandLines);
+			ArrayList<ArrayList<Pair<Integer, Integer>>> crossings = rec.getCrossings(overstrandLines, arcsMap);
 			
-			for (HashSet<Pair<Integer, Integer>> arc : arcs) {
-				arcsRange.addAll(arc);
+			int[][] colorArrs = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {255, 0, 255}, {0, 255, 255}, {255, 255, 255}};
+			int[] colors = new int[7];
+			
+			for (int i = 0; i < colors.length; i++) {
+				colors[i] = PixelProcessor.RGBToInt(colorArrs[i]);
 			}
 			
-			int[] redArr = {255, 0, 0};
-			int[] blueArr = {0, 0, 255};
-			int[] greenArr = {0, 255, 0};
-			int red = PixelProcessor.RGBToInt(redArr);
-			int blue = PixelProcessor.RGBToInt(blueArr);
-			int green = PixelProcessor.RGBToInt(greenArr);
-			int color = green;
 			int height = testImage.getHeight();
 			int width = testImage.getWidth();
-			HashSet<Pair<Integer, Integer>> adj = new HashSet<Pair<Integer, Integer>>();
-			Pair<Integer, Integer> crossing = new Pair<Integer, Integer>(0, 0);
-			for (int i = 0; i < crossings.size(); i++) {
-				crossing = crossings.get(i);
-				color = (i % 5 == 0) ? red : green;
-				
-				adj = PixelProcessor.getAdjacentPoints(crossing);
-				testImage.setRGB(crossing.getKey(), crossing.getValue(), color);
-				for (Pair<Integer, Integer> crossingNeighbor : adj) {
-					testImage.setRGB(crossingNeighbor.getKey(), crossingNeighbor.getValue(), color);
+			int x, y;
+			ArrayList<Pair<Integer, Integer>> adj = new ArrayList<Pair<Integer, Integer>>();
+			
+			for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
+				for (int i = 0; i < crossing.size(); i++) {
+					adj = PixelProcessor.getAnnulus(crossing.get(i), 0, 3);
+					
+					for (Pair<Integer, Integer> a : adj) {
+						x = a.getKey();
+						y = a.getValue();
+						if (0 <= x && x < width && 0 <= y && y < height) testImage.setRGB(a.getKey(), a.getValue(), (i == 0) ? colors[0] : colors[5]);
+					}
 				}
 			}
 			
