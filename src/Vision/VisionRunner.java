@@ -46,6 +46,8 @@ public class VisionRunner {
 			HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLines = rec.getOverstrandLineMap(endpoints);
 			HashMap<Pair<Integer, Integer>, Integer> arcsMap = rec.getArcsMap(overstrandLines);
 			ArrayList<ArrayList<Pair<Integer, Integer>>> crossings = rec.getCrossings(overstrandLines, arcsMap);
+			crossings = rec.getCrossingsWithDistinctReps(crossings, arcsMap);
+			HashMap<Pair<Integer, Integer>, Boolean> orientation = rec.orientArcs(crossings, arcsMap);
 			
 			int[][] colorArrs = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {255, 0, 255}, {0, 255, 255}, {255, 255, 255}};
 			int[] colors = new int[7];
@@ -59,19 +61,15 @@ public class VisionRunner {
 			int x, y;
 			ArrayList<Pair<Integer, Integer>> adj = new ArrayList<Pair<Integer, Integer>>();
 			
-			for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
-				for (int i = 0; i < crossing.size(); i++) {
-					adj = PixelProcessor.getAnnulus(crossing.get(i), 0, 3);
-					
-					for (Pair<Integer, Integer> a : adj) {
-						x = a.getKey();
-						y = a.getValue();
-						if (0 <= x && x < width && 0 <= y && y < height) testImage.setRGB(a.getKey(), a.getValue(), (i == 0) ? colors[0] : colors[5]);
-					}
+			for (Pair<Integer, Integer> rep : orientation.keySet()) {
+				adj = PixelProcessor.getAnnulus(rep, 0, 3);
+				
+				for (Pair<Integer, Integer> point : adj) {
+					testImage.setRGB(point.getKey(), point.getValue(), orientation.get(rep) ? colors[5] : colors[4]);
 				}
 			}
 			
-			File outputfile = new File("images/test/crossings/testCrossings_" + path);
+			File outputfile = new File("images/test/orientation/testOrientation_" + path);
 	        try {
 	            ImageIO.write(testImage, path.substring(path.length() - 3), outputfile);
 	        } catch (IOException e1) {

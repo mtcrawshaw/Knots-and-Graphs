@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 
 import javax.imageio.ImageIO;
 
@@ -464,49 +465,102 @@ public class Recognizer {
 		return crossings;
 	}	
 	/*
-	 * START HERE NEXT TIME. We have partnered the arc representatives and now we need to give each representative an orientation
+	 * Given the ArrayList of crossings, returns a modified list so that all representatives of each crossing are unique, so that no collision problems
+	 * occur later when we orient the arcs by mapping each representative to a boolean. 
 	 */
-	public HashMap<Pair<Integer, Integer>, Boolean> orientArcs(ArrayList<ArrayList<Pair<Integer, Integer>>> crossings, HashSet<HashSet<Pair<Integer, Integer>>> arcs) {
-		HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>> partners = new HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>>();
+	public ArrayList<ArrayList<Pair<Integer, Integer>>> getCrossingsWithDistinctReps(ArrayList<ArrayList<Pair<Integer, Integer>>> crossings, HashMap<Pair<Integer, Integer>, Integer> arcsMap) {
+		HashSet<Pair<Integer, Integer>> reps = new HashSet<Pair<Integer, Integer>>();
 		
 		HashSet<Pair<Integer, Integer>> arcPixels = new HashSet<Pair<Integer, Integer>>();
-		for (HashSet<Pair<Integer, Integer>> arc : arcs) {
-			arcPixels.addAll(arc);
+		for (Pair<Integer, Integer> point : arcsMap.keySet()) {
+			arcPixels.add(point);
 		}
 		
-		// This map is used so that it is easier to iterate over the 4 pairs
-		HashMap<Integer, Integer> indexPartners = new HashMap<Integer, Integer>();
-		indexPartners.put(1, 3);
-		indexPartners.put(2, 4);
-		
-		int value;
-		
-		// Iterating over each crossing to pair each arc representative for each crossing
 		for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
-			for (Integer key : indexPartners.keySet()) {
-				value = indexPartners.get(key);
-				
-				// This whole weird business is just to ensure that we don't try to put a key into partners that is already there. Even though the representative points from each crossing
-				// should be distinct, we put this in just to make sure. If the map already contains a certain rep, we just replace that rep with the next closest point in the range of the set of arcs.
-				while (partners.containsKey(crossing.get(key)) || partners.containsKey(crossing.get(value))) {
-					if (partners.containsKey(crossing.get(key))) {
-						arcPixels.remove(crossing.get(key));
-						crossing.set(key, PixelProcessor.getClosestPoint(crossing.get(key), arcPixels));
-						arcPixels.add(crossing.get(key));
-					}
-					
-					if (partners.containsKey(crossing.get(value))) {
-						arcPixels.remove(crossing.get(value));
-						crossing.set(value, PixelProcessor.getClosestPoint(crossing.get(value), arcPixels));
-						arcPixels.add(crossing.get(value));
-					}
+			for (int i = 1; i < crossing.size(); i++) {
+				while (reps.contains(crossing.get(i))) {
+					arcPixels.remove(crossing.get(i));
+					crossing.set(i, PixelProcessor.getClosestPoint(crossing.get(i), arcPixels));
+					arcPixels.add(crossing.get(i));
 				}
 				
-				partners.put(crossing.get(key), crossing.get(value));
-				partners.put(crossing.get(value), crossing.get(key));
+				reps.add(crossing.get(i));
 			}
 		}
 		
-		return null;
+		return crossings;
+	}
+	/*
+	 * START HERE NEXT TIME. We have partnered the arc representatives and now we need to give each representative an orientation
+	 */
+	@SuppressWarnings("unchecked")
+	public HashMap<Pair<Integer, Integer>, Boolean> orientArcs(ArrayList<ArrayList<Pair<Integer, Integer>>> crossings, HashMap<Pair<Integer, Integer>, Integer> arcsMap) {
+		HashMap<Pair<Integer, Integer>, Boolean> orientation = new HashMap<Pair<Integer, Integer>, Boolean>();
+		
+		// Pair arc representatives by the rule that two representatives across a crossing are paired
+		HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>> crossingPartners = new HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>>();
+		for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
+			crossingPartners.put(crossing.get(1), crossing.get(3));
+			crossingPartners.put(crossing.get(3), crossing.get(1));
+			crossingPartners.put(crossing.get(2), crossing.get(4));
+			crossingPartners.put(crossing.get(4), crossing.get(2));
+		}
+		
+		// Pair arc representatives by the rule that two representatives in te same arc are paired
+		HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>> arcPartners = new HashMap<Pair<Integer, Integer>, Pair<Integer, Integer>>();
+		
+		int numArcs = 2 * crossings.size();
+		ArrayList<HashSet<Pair<Integer, Integer>>> repsInArc = new ArrayList<HashSet<Pair<Integer, Integer>>>();
+		for (int i = 0; i < numArcs; i++) {
+			repsInArc.add(new HashSet<Pair<Integer, Integer>>());
+		}
+		
+		Iterator<Pair<Integer, Integer>> arcIterator = crossingPartners.keySet().iterator();
+		Pair<Integer, Integer> rep, repPartner;
+		HashSet<Pair<Integer, Integer>> arcReps;
+		int arc;
+		
+		while (arcIterator.hasNext()) {
+			rep = arcIterator.next();
+			arc = arcsMap.get(rep);
+			arcReps = repsInArc.get(arc);
+			
+			if (arcReps.size() == 1) {
+				repPartner = arcReps.iterator().next();
+				arcPartners.put(new Pair<Integer, Integer>(rep.getKey(), rep.getValue()), new Pair<Integer, Integer>(repPartner.getKey(), repPartner.getValue()));
+				arcPartners.put(new Pair<Integer, Integer>(repPartner.getKey(), repPartner.getValue()), new Pair<Integer, Integer>(rep.getKey(), rep.getValue()));
+			}
+			
+			arcReps.add(rep);
+			repsInArc.set(arc, (HashSet<Pair<Integer, Integer>>)arcReps.clone());
+		}
+		
+		/*Pair<Integer, Integer> rep = crossingPartners.keySet().iterator().next();
+		Pair<Integer, Integer> next;
+		orientation.put(rep, true);
+		rep = crossingPartners.get(rep);
+		
+		// Assign orientation to each representative, traversing from representative to it's crossingPartner, to that representative's arc partner, and again
+		while (!orientation.keySet().contains(rep)) {
+			orientation.put(rep, false);
+			
+			// Possible failure point if there are no other representative in the same arc as rec
+			
+			arcIterator = arcsMap.keySet().iterator();
+			next = arcIterator.next();
+			while (arcIterator.hasNext() && (arcsMap.get(next) != arcsMap.get(rep) || next.equals(rep))) {
+				next = arcIterator.next();
+			}
+			
+			if (arcsMap.get(next) == arcsMap.get(rep)) {
+				rep = next;
+				orientation.put(rep, true);
+			} else {
+				System.err.println("We're fucked");
+				break;
+			}
+		}*/
+		
+		return orientation;
 	}
 }

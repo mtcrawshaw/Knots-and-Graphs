@@ -126,6 +126,12 @@ public class PixelProcessor {
 	}
 	public static ArrayList<Pair<Integer, Integer>> getCircle(Pair<Integer, Integer> center, double radius) {
 		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair <Integer, Integer>>();
+		
+		if (radius == 0) {
+			circle.add(center);
+			return circle;
+		}
+		
 		int x = center.getKey();
 		int y = center.getValue();
 		int newX = x;
