@@ -5,7 +5,6 @@ TO DO:
 - In cases where order doesn't matter, change ArrayLists to HashSets. Originally kept some ArrayLists because performance wasn't always important, 
   but now there are a bunch of compatibility issues between methods that use ArrayLists and methods that use HashSets.
 - Generalize methods with Collection where possible
-- Start linking together the pieces of the puzzle in the getKnot() method instead of doing a bunch of ad hoc shit in the main of the runner.
 - Clean up and comment. Especially organize PixelProcessor better. Break methods into categories, static vs non-static etc.
 
 Time:

@@ -14,23 +14,20 @@ import javafx.util.Pair;
 import Knot.ClassicalCrossing;
 import Knot.VirtualKnot;
 
+/*
+ * Object that performs the recognition of a knot, given an image.
+ */
 public class Recognizer {
 	private HashSet<Pair<Integer, Integer>> pixels;
 	private boolean verbose = false;
+	private double strandWidth = 0;
 	
 	// Constructors
 	public Recognizer(BufferedImage img) {
 		setImage(img);
 	}
 	public Recognizer(String path) {
-		BufferedImage testImage = null;
-		try {
-			testImage = ImageIO.read(new File("images/" + path));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		setImage(testImage);
+		setImage(path);
 	}
 	public Recognizer() {
 		pixels = new HashSet<Pair<Integer, Integer>>();
@@ -45,6 +42,17 @@ public class Recognizer {
 	}
 	
 	// Mutators
+	public void setImage(String path) {
+		BufferedImage testImage = null;
+		try {
+			testImage = ImageIO.read(new File(path));
+		} catch (IOException e) {
+			System.err.println("Error while reading file!");
+			e.printStackTrace();
+		}
+		
+		setImage(testImage);
+	}
 	public void setImage(BufferedImage img) {
 		int height = img.getHeight();
 		int width = img.getWidth();
@@ -55,6 +63,8 @@ public class Recognizer {
 				if (PixelProcessor.isBlack(img.getRGB(x, y))) pixels.add(new Pair<Integer, Integer>(x, y));
 			}
 		}
+		
+		measureWidth();
 	}
 	public void setPixels(HashSet<Pair<Integer, Integer>> p) {
 		pixels = p;
@@ -64,14 +74,26 @@ public class Recognizer {
 	}
 	
 	// Methods
+	// Note: Most of these methods should be made private later, but they can be kept as package/public for now for testing purposes
+	
 	/*
 	 * Finds the knot represented by the image given.
 	 */
 	public VirtualKnot getKnot(int numCrossings) {
-		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints = getEndpoints(numCrossings);
+		HashMap<Pair<Integer, Integer>, Integer> protrusionMap = getProtrusionMap();
+		ArrayList<HashSet<Pair<Integer, Integer>>> endpointClusters = getEndpointClusters(numCrossings, protrusionMap);
+		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endpoints = getEndpoints(endpointClusters);
 		HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, ArrayList<Pair<Integer, Integer>>> overstrandLines = getOverstrandLineMap(endpoints);
 		HashMap<Pair<Integer, Integer>, Integer> arcsMap = getArcsMap(overstrandLines);
 		ArrayList<ArrayList<Pair<Integer, Integer>>> crossings = getCrossings(overstrandLines, arcsMap);
+		
+		// This is error detection in the recognition process. If any of the crossing representatives are (0, 0), the recognition messed up and we return a new knot instance
+		for (ArrayList<Pair<Integer, Integer>> crossing : crossings) {
+			for (Pair<Integer, Integer> rep : crossing) {
+				if (rep.getValue() == 0 && rep.getKey() == 0) return new VirtualKnot();
+			}
+		}
+		
 		crossings = getCrossingsWithDistinctReps(crossings, arcsMap);
 		HashMap<Pair<Integer, Integer>, Boolean> orientation = orientArcs(crossings, arcsMap);
 		crossings = orderArcsInCrossings(crossings, orientation);
@@ -95,6 +117,55 @@ public class Recognizer {
 		return knot;
 	}
 	/*
+	 * Estimates the width of the strand making the knot.
+	 */
+	public void measureWidth() {
+		double width = 0;
+		
+		// Find leftmost point, rightmost point, highest point, and lowest point
+		ArrayList<Pair<Integer, Integer>> extremes = new ArrayList<Pair<Integer, Integer>>();
+		extremes.add(new Pair<Integer, Integer>(Integer.MAX_VALUE, 0));		// Leftmost point
+		extremes.add(new Pair<Integer, Integer>(0, 0));						// Rightmost point
+		extremes.add(new Pair<Integer, Integer>(0, Integer.MAX_VALUE));		// Highest point (closest to origin)
+		extremes.add(new Pair<Integer, Integer>(0, 0));						// Lowest point (furthest from origin)
+		
+		int x, y;
+		
+		for (Pair<Integer, Integer> point : pixels) {
+			x = point.getKey();
+			y = point.getValue();
+			
+			if (x < extremes.get(0).getKey()) extremes.set(0, new Pair<Integer, Integer>(x, y));
+			if (x > extremes.get(1).getKey()) extremes.set(1, new Pair<Integer, Integer>(x, y));
+			if (y < extremes.get(2).getValue()) extremes.set(2, new Pair<Integer, Integer>(x, y));
+			if (y > extremes.get(3).getValue()) extremes.set(3, new Pair<Integer, Integer>(x, y));
+		}
+		
+		
+		// Measure width at each of the extreme points, return the average
+		Pair<Integer, Integer> point = new Pair<Integer, Integer>(0, 0);
+		ArrayList<Pair<Integer, Integer>> inc = new ArrayList<Pair<Integer, Integer>>();
+		int currentWidth = 0;
+		inc.add(new Pair<Integer, Integer>(1, 0));
+		inc.add(new Pair<Integer, Integer>(-1, 0));
+		inc.add(new Pair<Integer, Integer>(0, 1));
+		inc.add(new Pair<Integer, Integer>(0, -1));
+		
+		for (int i = 0; i < extremes.size(); i++) {
+			point = new Pair<Integer, Integer>(extremes.get(i).getKey(), extremes.get(i).getValue());
+			currentWidth = 0;
+			
+			while (pixels.contains(point)) {
+				point = new Pair<Integer, Integer>(point.getKey() + inc.get(i).getKey(), point.getValue() + inc.get(i).getValue());
+				currentWidth++;
+			}
+			
+			width += (double)currentWidth / (double)extremes.size();
+		}
+		
+		strandWidth = width;
+	}
+	/*
 	 * Finds the number of "protrusions" of the knot at a given point. For example, if the point is an endpoint of a strand 
 	 * (like where a strand crosses under another strand), the number of protrusions is 1. If the point is in the middle of a strand,
 	 * the number of protrusions is 2. If the point is the center of a virtual crossing, the number of protrusions is 4. 
@@ -107,7 +178,7 @@ public class Recognizer {
 		final int INITIAL_RADIUS = 1;
 		final double CONTAINED_THRESHOLD = .25;
 		
-		int radius = INITIAL_RADIUS;
+		double radius = INITIAL_RADIUS;
 		int numSwitches = 0;
 		double amountContained = 1;
 		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair<Integer, Integer>>();
@@ -242,17 +313,13 @@ public class Recognizer {
 		return endpointClusters;
 	}
 	/*
-	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as single point from the end of a strand. 
-	 * The method goes through a sampling of the points along the knot, calculates the number of protrusions for each point, 
-	 * then collects all of the points with 1 protrusion and chooses one point from each cluster, then returns those endpoints.
+	 * Returns the clusters made by the points with 1 protrusion, given the number of crossings and the protrusion map.
 	 */
 	@SuppressWarnings("unchecked")
-	public HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> getEndpoints(int numCrossings) {
+	public ArrayList<HashSet<Pair<Integer, Integer>>> getEndpointClusters(int numCrossings, HashMap<Pair<Integer, Integer>, Integer> protrusions) {
 		// This method is super rudimentary right now. We will change this soon.
-		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endPoints = new HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>>();
 		
-		// Get and smoothe protrusion map until number of connected components of subset of points with 1 protrusion is 2 * numCrossings.
-		HashMap<Pair<Integer, Integer>, Integer> protrusions = getProtrusionMap();
+		// Smoothe protrusion map until number of connected components of subset of points with 1 protrusion is 2 * numCrossings.
 		HashSet<Pair<Integer, Integer>> possibleEndpoints = new HashSet<Pair<Integer, Integer>>();
 		for (Pair<Integer, Integer> point : protrusions.keySet()) {
 			if (protrusions.get(point) == 1) possibleEndpoints.add(point);
@@ -262,45 +329,55 @@ public class Recognizer {
 		int numComp = endpointClusters.size(), prevNumComp = numComp, stableLength = 0;
 		double radius = 1;
 		final int STABILIZATION_THRESHOLD = 10;
-		
+				
 		if (verbose) System.out.println("Finding endpoint clusters");
-		
+				
 		while (numComp > 2 * numCrossings) {
 			protrusions = smootheProtrusionMap(protrusions, radius);
 			possibleEndpoints.clear();
 			for (Pair<Integer, Integer> point : protrusions.keySet()) {
 				if (protrusions.get(point) == 1) possibleEndpoints.add(point);
 			}
-			
+					
 			// We keep the clusters from the last smoothing cycle in case we smoothe too much and a component disappears, in which case we take the largest components from the previous clusters
 			prevClusters = (HashSet<HashSet<Pair<Integer, Integer>>>) endpointClusters.clone();
 			endpointClusters = (new PixelProcessor(possibleEndpoints)).getComponents();
 			prevNumComp = numComp;
 			numComp = endpointClusters.size();
-			
+					
 			if (numComp == prevNumComp) stableLength++;
 			else stableLength = 1;
-			
+					
 			if (stableLength >= STABILIZATION_THRESHOLD) {
 				radius += .5;
 				stableLength = 0;
 			}
 		}
 		ArrayList<HashSet<Pair<Integer, Integer>>> sortedClusters = new ArrayList<HashSet<Pair<Integer, Integer>>>();
-		
+				
 		if (numComp < 2 * numCrossings) {
 			endpointClusters = (HashSet<HashSet<Pair<Integer, Integer>>>)prevClusters.clone();
 			for (HashSet<Pair<Integer, Integer>> cluster : endpointClusters) sortedClusters.add(cluster);
-			
+					
 			sortedClusters = PixelProcessor.quickSortBySize(sortedClusters);
 			while (sortedClusters.size() > 2 * numCrossings) sortedClusters.remove(sortedClusters.size() - 1);
 		} else {
 			for (HashSet<Pair<Integer, Integer>> cluster : endpointClusters) sortedClusters.add(cluster);
 		}
 		
+		return sortedClusters;
+	}
+	/*
+	 * Returns an ArrayList of endpoints of the knot. Each endpoint is represented as single point from the end of a strand. 
+	 * The method goes through a sampling of the points along the knot, calculates the number of protrusions for each point, 
+	 * then collects all of the points with 1 protrusion and chooses one point from each cluster, then returns those endpoints.
+	 */
+	public HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> getEndpoints(ArrayList<HashSet<Pair<Integer, Integer>>> endpointClusters) {
+		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> endPoints = new HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>>();
+		
 		// Get one point as a "representative" for each connected component, then pair representatives by distance
 		HashSet<Pair<Integer, Integer>> endpointReps = new HashSet<Pair<Integer, Integer>>();
-		for (HashSet<Pair<Integer, Integer>> cluster : sortedClusters) {
+		for (HashSet<Pair<Integer, Integer>> cluster : endpointClusters) {
 			endpointReps.add(PixelProcessor.getMeanRepresentative(cluster));
 		}
 		HashSet<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>> pairedEndpoints = pairEndpoints(endpointReps);
@@ -311,8 +388,8 @@ public class Recognizer {
 		Pair<Integer, Integer> keyRep = new Pair<Integer, Integer>(0, 0);
 		Pair<Integer, Integer> valueRep = new Pair<Integer, Integer>(0, 0);
 		for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> pair : pairedEndpoints) {
-			keyCluster = PixelProcessor.findParentCluster(sortedClusters, pair.getKey());
-			valueCluster = PixelProcessor.findParentCluster(sortedClusters, pair.getValue());
+			keyCluster = PixelProcessor.findParentCluster(endpointClusters, pair.getKey());
+			valueCluster = PixelProcessor.findParentCluster(endpointClusters, pair.getValue());
 			valueRep = PixelProcessor.getClosestPoint(pair.getKey(), valueCluster);
 			keyRep = PixelProcessor.getClosestPoint(pair.getValue(), keyCluster);
 			endPoints.add(new Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>(keyRep, valueRep));

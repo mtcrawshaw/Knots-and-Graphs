@@ -7,6 +7,12 @@ import java.util.HashSet;
 
 import javafx.util.Pair;
 
+/*
+ * Kind of just a class to dump a bunch of functions to do nitty-gritty work with pixels,
+ * like finding distance between points, connected components of a pixel array, etc. There
+ * is definitely a better way to organize this, I should clean this up later. For now it's
+ * functional and that's fine.
+ */
 public class PixelProcessor {
 	private HashSet<Pair<Integer, Integer>> pixels;
 	
