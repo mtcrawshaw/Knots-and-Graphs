@@ -1,0 +1,6 @@
+TO DO:
+Scrape online databases for images + invariants
+Make setting for black background
+Add strand width into calculation of number of protrusions
+Remove requirement of adding number of crossings?
+Support knot atlas picture format?

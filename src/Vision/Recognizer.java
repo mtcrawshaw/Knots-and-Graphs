@@ -184,6 +184,7 @@ public class Recognizer {
 		ArrayList<Pair<Integer, Integer>> circle = new ArrayList<Pair<Integer, Integer>>();
 		PixelProcessor processor = new PixelProcessor(pixels);
 		
+		// Increase radius of circle until less than CONTAINED_THRESHOLD of the circle is intersecting with the strand
 		while (amountContained > CONTAINED_THRESHOLD) {
 			circle = PixelProcessor.getCircle(p, radius);
 			numSwitches = processor.getNumSwitches(circle);
@@ -191,6 +192,13 @@ public class Recognizer {
 			radius += RADIUS_STEP1;
 		}
 		
+		// Measure the number of "switches" along the P_WINDOW circles with radius:
+		// baseRadius
+		// baseRadius + RADIUS_STEP2
+		// baseRadius + 2 * RADIUS_STEP2
+		// ...
+		// baseRadius + (P_WINDOW - 1) * RADIUS_STEP2,
+		// where baseRadius is the value of radius after the above while loop
 		double numProtrusions = (double)numSwitches / (2.0 * (double)P_WINDOW);
 		for (int i = 1; i <= P_WINDOW - 1; i++) {
 			circle = PixelProcessor.getCircle(p, radius);

@@ -30,7 +30,7 @@ public class VirtualKnot {
 		crossings = new ArrayList<ClassicalCrossing>();
 		Scanner reader = new Scanner("");
 		try {
-			reader = new Scanner(new File("./" + filename));
+			reader = new Scanner(new File(filename));
 		} catch (FileNotFoundException e) {
 			System.out.println("File not found!");
 			e.printStackTrace();

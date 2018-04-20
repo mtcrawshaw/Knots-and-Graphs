@@ -1,8 +1,10 @@
 import Knot.VirtualKnot;
+import Vision.Recognizer;
 
-public class ArrowFromFile {
+public class ArrowFromPicture {
 	public static void main(String[] args) {
-		VirtualKnot K = new VirtualKnot(args[0]);
+		Recognizer rec = new Recognizer(args[0]);
+		VirtualKnot K = rec.getKnot(Integer.parseInt(args[1]));
 
 		System.out.println("Knot: " + K.toString());
 		System.out.println("Arrow Polynomial: " + K.getArrowPolynomial());
