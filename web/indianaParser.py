@@ -1,16 +1,26 @@
 from bs4 import BeautifulSoup
 import random
+import json
 
 readFile = open("indianaKnots.html", "r")
 pageText = readFile.read()
 readFile.close()
 
 bs = BeautifulSoup(pageText, 'html.parser')
-count = 0
+jsonString = "{\n\t"
 
 for row in bs.find_all('tr'):
-    if random.random() < 1.0 / 1000:
-        print (row.contents)
-    count += 1
+    try:
+        knotID = "I_" + (row.contents[0].find('a')).contents[0]
+        jones = (row.contents[1]).contents[0]
+        jsonString = jsonString + "\"" + knotID + "\":\"" + formatPolynomial(poly) + "\",\n\t"
+    except:
+        print ("bad")
 
-print (count)
+#jsonString = jsonString[:]
+
+print jsonString
+
+def formatPolynomial(poly):
+    """ IMPLEMENT THIS """
+    return poly
