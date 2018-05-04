@@ -1,0 +1,35 @@
+======== PERFORMANCE REPORT ========
+Total trials: 5
+Successes: 0
+Failures: 5
+Accuracy: 0.0
+
+# crossings: 12
+Successes: null
+Trials: 5
+Accuracy: 0.0
+
+======== FAILURES ========
+======== SUCCESSES ========
+======== ERRORS ========
+Num errors: 5
+I_12a_0745
+java.lang.NullPointerException
+
+
+I_12a_0743
+java.lang.NullPointerException
+
+
+I_12n_0034
+java.lang.NullPointerException
+
+
+I_12n_0032
+java.lang.NullPointerException
+
+
+I_12a_0764
+java.lang.NullPointerException
+
+

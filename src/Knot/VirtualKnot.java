@@ -198,7 +198,39 @@ public class VirtualKnot {
 	public Polynomial getNormalizedArrowPolynomial() {
 		return (getNormalizationFactor()).multiply(getArrowPolynomial());
 	}
-
+	public Polynomial getJonesPolynomial() {
+		//Assert that polynomial is contains no k terms
+		
+		Polynomial arrow = getNormalizedArrowPolynomial();
+		Polynomial jones = new Polynomial();
+		
+		ArrayList<Term> arrowTerms = arrow.getTerms();
+		ArrayList<Factor> factors = new ArrayList<Factor>();
+		Term jonesTerm = new Term();
+		Factor jonesFactor = new Factor();
+		
+		for (Term t : arrowTerms) {
+			factors = t.getFactors();
+			jonesTerm = new Term();
+			jonesTerm.setConstant(t.getConstant());
+			
+			for (Factor f : factors) {
+				jonesFactor = new Factor(f);
+				
+				if (f.getBase().equals("A")) {
+					jonesFactor.setPower(f.getPower() / -4);
+					jonesFactor.setBase("t");
+				}
+				
+				jonesTerm.addFactor(jonesFactor);
+			}
+			
+			jones.addTerm(jonesTerm);
+		}
+		
+		return jones;
+	}
+	
 	// Utility Methods
 	public String toString() {
 		return crossings.toString();
